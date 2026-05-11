@@ -33,6 +33,8 @@ _G.AutoParry = false
 _G.SafeMode = false
 _G.AntiStaff = false
 _G.AntiChatLogger = false
+_G.SuperBypass = false
+local TargetPlayerName = "" 
 
 -- 1. PESTAÑA SEGURIDAD ÉLITE 🛡️
 local SecurityTab = Window:CreateTab("Seguridad Élite 🛡️", 4483362458)
@@ -112,6 +114,84 @@ SpyTab:CreateToggle({
    end,
 })
 
+-- 4. PESTAÑA BYPASS MOVIMIENTO 🔓
+local MoveTab = Window:CreateTab("Bypass Movimiento 🔓", 4483362458)
+
+MoveTab:CreateInput({
+   Name = "Nombre EXACTO del Oponente",
+   PlaceholderText = "Escribe el nombre completo...",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      TargetPlayerName = Text
+   end,
+})
+
+MoveTab:CreateButton({
+   Name = "🎯 Teleport al Oponente (Preciso)",
+   Callback = function()
+      if TargetPlayerName == "" then 
+         Rayfield:Notify({Title = "ERROR", Content = "Escribe un nombre primero", Duration = 2})
+         return 
+      end
+      
+      pcall(function()
+         local found = false
+         for _, v in pairs(Players:GetPlayers()) do
+            -- Filtro Preciso: Nombre igual al escrito y que NO sea de tu equipo
+            if v ~= localPlayer and (v.Name:lower() == TargetPlayerName:lower() or v.DisplayName:lower() == TargetPlayerName:lower()) then
+               if v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                  localPlayer.Character.HumanoidRootPart.CFrame = v.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+                  found = true
+                  Rayfield:Notify({Title = "NOVA", Content = "Teletransportado a " .. v.Name, Duration = 2})
+                  break 
+               end
+            end
+         end
+         
+         -- Si no encuentra el nombre exacto, busca una coincidencia cercana como respaldo
+         if not found then
+            for _, v in pairs(Players:GetPlayers()) do
+               if v ~= localPlayer and v.Name:lower():find(TargetPlayerName:lower()) then
+                  if v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                     localPlayer.Character.HumanoidRootPart.CFrame = v.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+                     found = true
+                     Rayfield:Notify({Title = "NOVA (Cercano)", Content = "Llegaste a " .. v.Name, Duration = 2})
+                     break
+                  end
+               end
+            end
+         end
+
+         if not found then
+            Rayfield:Notify({Title = "AVISO", Content = "Jugador no encontrado", Duration = 2})
+         end
+      end)
+   end,
+})
+
+MoveTab:CreateToggle({
+   Name = "🔥 Romper Contador (Anti-Freeze)",
+   CurrentValue = false,
+   Callback = function(Value)
+      _G.SuperBypass = Value
+      task.spawn(function()
+         while _G.SuperBypass do
+            pcall(function()
+               local char = localPlayer.Character
+               if char then
+                  for _, v in pairs(char:GetDescendants()) do
+                     if v:IsA("BasePart") then v.Anchored = false end
+                  end
+                  local hum = char:FindFirstChild("Humanoid")
+                  if hum and hum.WalkSpeed < 10 then hum.WalkSpeed = 16 end
+               end
+            end)
+            task.wait(0.1)
+         end
+      end)
+   end,
+})
+
 -- LÓGICA DE PROCESAMIENTO
 RunService.Stepped:Connect(function()
     for _, p in pairs(Players:GetPlayers()) do
@@ -120,7 +200,6 @@ RunService.Stepped:Connect(function()
             local hum = p.Character:FindFirstChild("Humanoid")
 
             if hum and hum.Health > 0 and root then
-                -- LÓGICA HITBOX + SAFE MODE
                 if _G.HitboxActive then
                     root.Size = Vector3.new(7, 7, 7)
                     root.CanCollide = false
@@ -135,7 +214,6 @@ RunService.Stepped:Connect(function()
                     root.Transparency = 1
                 end
 
-                -- ESP REFORZADO
                 if _G.EspActive then
                     if not p.Character:FindFirstChild("NovaESP") then
                         local h = Instance.new("Highlight", p.Character)
@@ -145,10 +223,9 @@ RunService.Stepped:Connect(function()
                     end
                 end
                 
-                -- AUTO-PARRY
                 if _G.AutoParry then
-                    local dist = (root.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-                    if dist < 15 then
+                    local d = (root.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
+                    if d < 15 then
                         local myTool = localPlayer.Character:FindFirstChildOfClass("Tool")
                         if myTool and myTool:FindFirstChild("Block") then
                             myTool.Block:FireServer()
@@ -159,3 +236,5 @@ RunService.Stepped:Connect(function()
         end
     end
 end)
+
+Rayfield:Notify({Title = "NOVA LOADED", Content = "Teleport Preciso Activado", Duration = 5})
