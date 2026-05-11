@@ -25,16 +25,35 @@ local Window = Rayfield:CreateWindow({
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
 -- VARIABLES DE CONTROL
 _G.EspActive = false
 _G.HitboxActive = false
+_G.HitboxSmartActive = false -- Nueva Variable
 _G.AutoParry = false
 _G.SafeMode = false
 _G.AntiStaff = false
 _G.AntiChatLogger = false
 _G.SuperBypass = false
 local TargetPlayerName = "" 
+
+-- FUNCIÓN WALL-CHECK (NUEVA)
+local function estaVisible(targetPart)
+    local character = localPlayer.Character
+    if not character or not targetPart then return false end
+    
+    local rayDirection = (targetPart.Position - Camera.CFrame.Position).Unit * (targetPart.Position - Camera.CFrame.Position).Magnitude
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {character, Camera}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+    local raycastResult = workspace:Raycast(Camera.CFrame.Position, rayDirection, raycastParams)
+    if raycastResult then
+        return raycastResult.Instance:IsDescendantOf(targetPart.Parent)
+    end
+    return false
+end
 
 -- 1. PESTAÑA SEGURIDAD ÉLITE 🛡️
 local SecurityTab = Window:CreateTab("Seguridad Élite 🛡️", 4483362458)
@@ -97,6 +116,17 @@ CombatTab:CreateToggle({
    end,
 })
 
+-- NUEVA PESTAÑA: HITBOX INTELIGENTE 🛡️
+local HitboxProTab = Window:CreateTab("Hitbox Pro 🛡️", 4483362458)
+
+HitboxProTab:CreateToggle({
+   Name = "🟢 Hitbox Smart (Wall-Check)",
+   CurrentValue = false,
+   Callback = function(Value)
+      _G.HitboxSmartActive = Value
+   end,
+})
+
 -- 3. PESTAÑA VISUAL 👁️
 local SpyTab = Window:CreateTab("Visuals 👁️", 4483362458)
 SpyTab:CreateToggle({
@@ -137,7 +167,6 @@ MoveTab:CreateButton({
       pcall(function()
          local found = false
          for _, v in pairs(Players:GetPlayers()) do
-            -- Filtro Preciso: Nombre igual al escrito y que NO sea de tu equipo
             if v ~= localPlayer and (v.Name:lower() == TargetPlayerName:lower() or v.DisplayName:lower() == TargetPlayerName:lower()) then
                if v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
                   localPlayer.Character.HumanoidRootPart.CFrame = v.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
@@ -148,7 +177,6 @@ MoveTab:CreateButton({
             end
          end
          
-         -- Si no encuentra el nombre exacto, busca una coincidencia cercana como respaldo
          if not found then
             for _, v in pairs(Players:GetPlayers()) do
                if v ~= localPlayer and v.Name:lower():find(TargetPlayerName:lower()) then
@@ -200,14 +228,16 @@ RunService.Stepped:Connect(function()
             local hum = p.Character:FindFirstChild("Humanoid")
 
             if hum and hum.Health > 0 and root then
-                if _G.HitboxActive then
+                -- Lógica combinada de Hitbox (Tradicional y Smart)
+                if _G.HitboxActive or (_G.HitboxSmartActive and estaVisible(root)) then
                     root.Size = Vector3.new(7, 7, 7)
                     root.CanCollide = false
                     if _G.SafeMode then
                         root.Transparency = 1 
                     else
                         root.Transparency = 0.75
-                        root.Color = Color3.fromRGB(0, 0, 255)
+                        -- Si es Smart la pone verde, si es Normal la pone azul
+                        root.Color = _G.HitboxSmartActive and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(0, 0, 255)
                     end
                 else
                     root.Size = Vector3.new(2, 2, 1)
@@ -237,4 +267,4 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-Rayfield:Notify({Title = "NOVA LOADED", Content = "Teleport Preciso Activado", Duration = 5})
+Rayfield:Notify({Title = "NOVA LOADED", Content = "Hitbox Smart con Wall-Check Activa", Duration = 5})
