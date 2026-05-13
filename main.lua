@@ -30,7 +30,7 @@ local Camera = workspace.CurrentCamera
 -- VARIABLES DE CONTROL
 _G.EspActive = false
 _G.HitboxActive = false
-_G.HitboxSmartActive = false -- Nueva Variable
+_G.HitboxSmartActive = false
 _G.AutoParry = false
 _G.SafeMode = false
 _G.AntiStaff = false
@@ -38,7 +38,16 @@ _G.AntiChatLogger = false
 _G.SuperBypass = false
 local TargetPlayerName = "" 
 
--- FUNCIÓN WALL-CHECK (NUEVA)
+-- FUNCIÓN PARA BORRAR EL MENÚ (Para tus grabaciones)
+local function BorrarMenuTotal()
+    for _, v in ipairs(game:GetDescendants()) do
+        if v.ClassName == "ScreenGui" and (v.Name == "Rayfield" or v:FindFirstChild("Main")) then
+            v:Destroy()
+        end
+    end
+end
+
+-- FUNCIÓN WALL-CHECK
 local function estaVisible(targetPart)
     local character = localPlayer.Character
     if not character or not targetPart then return false end
@@ -57,6 +66,15 @@ end
 
 -- 1. PESTAÑA SEGURIDAD ÉLITE 🛡️
 local SecurityTab = Window:CreateTab("Seguridad Élite 🛡️", 4483362458)
+
+SecurityTab:CreateButton({
+   Name = "❌ ELIMINAR MENÚ (Grabar Clip)",
+   Callback = function()
+      Rayfield:Notify({Title = "MODO GRABACIÓN", Content = "Menú eliminado. Las funciones siguen activas.", Duration = 3})
+      task.wait(1)
+      BorrarMenuTotal()
+   end,
+})
 
 SecurityTab:CreateToggle({
    Name = "🛡️ Modo Fantasma (Anti-Staff)",
@@ -116,7 +134,7 @@ CombatTab:CreateToggle({
    end,
 })
 
--- NUEVA PESTAÑA: HITBOX INTELIGENTE 🛡️
+-- 3. PESTAÑA HITBOX INTELIGENTE 🛡️
 local HitboxProTab = Window:CreateTab("Hitbox Pro 🛡️", 4483362458)
 
 HitboxProTab:CreateToggle({
@@ -127,7 +145,7 @@ HitboxProTab:CreateToggle({
    end,
 })
 
--- 3. PESTAÑA VISUAL 👁️
+-- 4. PESTAÑA VISUAL 👁️
 local SpyTab = Window:CreateTab("Visuals 👁️", 4483362458)
 SpyTab:CreateToggle({
    Name = "Wallhack (ESP Highlight)",
@@ -144,7 +162,7 @@ SpyTab:CreateToggle({
    end,
 })
 
--- 4. PESTAÑA BYPASS MOVIMIENTO 🔓
+-- 5. PESTAÑA BYPASS MOVIMIENTO 🔓
 local MoveTab = Window:CreateTab("Bypass Movimiento 🔓", 4483362458)
 
 MoveTab:CreateInput({
@@ -220,51 +238,46 @@ MoveTab:CreateToggle({
    end,
 })
 
--- LÓGICA DE PROCESAMIENTO
-RunService.Stepped:Connect(function()
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= localPlayer and p.Character then
-            local root = p.Character:FindFirstChild("HumanoidRootPart")
-            local hum = p.Character:FindFirstChild("Humanoid")
+-- EL ESPIÉ (Lógica persistente en segundo plano)
+task.spawn(function()
+    RunService.Stepped:Connect(function()
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= localPlayer and p.Character then
+                local root = p.Character:FindFirstChild("HumanoidRootPart")
+                local hum = p.Character:FindFirstChild("Humanoid")
 
-            if hum and hum.Health > 0 and root then
-                -- Lógica combinada de Hitbox (Tradicional y Smart)
-                if _G.HitboxActive or (_G.HitboxSmartActive and estaVisible(root)) then
-                    root.Size = Vector3.new(7, 7, 7)
-                    root.CanCollide = false
-                    if _G.SafeMode then
-                        root.Transparency = 1 
-                    else
-                        root.Transparency = 0.75
-                        -- Si es Smart la pone verde, si es Normal la pone azul
+                if hum and hum.Health > 0 and root then
+                    if _G.HitboxActive or (_G.HitboxSmartActive and estaVisible(root)) then
+                        root.Size = Vector3.new(7, 7, 7)
+                        root.CanCollide = false
+                        root.Transparency = _G.SafeMode and 1 or 0.75
                         root.Color = _G.HitboxSmartActive and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(0, 0, 255)
+                    else
+                        root.Size = Vector3.new(2, 2, 1)
+                        root.Transparency = 1
                     end
-                else
-                    root.Size = Vector3.new(2, 2, 1)
-                    root.Transparency = 1
-                end
 
-                if _G.EspActive then
-                    if not p.Character:FindFirstChild("NovaESP") then
-                        local h = Instance.new("Highlight", p.Character)
-                        h.Name = "NovaESP"
-                        h.FillColor = Color3.fromRGB(255, 0, 0)
-                        h.OutlineTransparency = 0
+                    if _G.EspActive then
+                        if not p.Character:FindFirstChild("NovaESP") then
+                            local h = Instance.new("Highlight", p.Character)
+                            h.Name = "NovaESP"
+                            h.FillColor = Color3.fromRGB(255, 0, 0)
+                        end
                     end
-                end
-                
-                if _G.AutoParry then
-                    local d = (root.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-                    if d < 15 then
-                        local myTool = localPlayer.Character:FindFirstChildOfClass("Tool")
-                        if myTool and myTool:FindFirstChild("Block") then
-                            myTool.Block:FireServer()
+                    
+                    if _G.AutoParry then
+                        local d = (root.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
+                        if d < 15 then
+                            local myTool = localPlayer.Character:FindFirstChildOfClass("Tool")
+                            if myTool and myTool:FindFirstChild("Block") then
+                                myTool.Block:FireServer()
+                            end
                         end
                     end
                 end
             end
         end
-    end
+    end)
 end)
 
-Rayfield:Notify({Title = "NOVA LOADED", Content = "Hitbox Smart con Wall-Check Activa", Duration = 5})
+Rayfield:Notify({Title = "NOVA LOADED", Content = "Todo listo, Alexx. Menú 100% funcional.", Duration = 5})
