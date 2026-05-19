@@ -97,7 +97,7 @@ local function isEnemyVisible(targetPart)
     return true
 end
 
--- Algoritmo de Target Dark Hub
+-- Algoritmo de Target Modificado (No apunta detrás de las paredes)
 local function getBestTarget()
     local target = nil
     local shortestDistance = math.huge
@@ -112,7 +112,8 @@ local function getBestTarget()
             local hrp = v.Character.HumanoidRootPart
             local pos, visible = Camera:WorldToViewportPoint(hrp.Position)
 
-            if visible and isEnemyVisible(hrp) then
+            -- CONDICIÓN ESTRICTA: El personaje debe ser visible en pantalla Y pasar el control de obstrucciones estáticas
+            if visible and isEnemyVisible(hrp) and estaVisible(hrp) then
                 local distance = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
                 if distance < shortestDistance then
                     shortestDistance = distance
@@ -254,7 +255,6 @@ CombatTab:CreateToggle({
    end,
 })
 
--- NUEVAS FUNCIONES DE COMBATE INYECTADAS DE DARK HUB
 CombatTab:CreateToggle({
     Name = "Auto Shot",
     CurrentValue = false,
@@ -332,7 +332,6 @@ SpyTab:CreateToggle({
    end,
 })
 
--- NUEVO CONTROL VISUAL INYECTADO DE DARK HUB
 SpyTab:CreateToggle({
     Name = "Wallhack (Chams Tradicionales)",
     CurrentValue = false,
@@ -429,7 +428,7 @@ MoveTab:CreateToggle({
 
 
 -- ==========================================
--- 6. PESTAÑA SCRIPT ANIMACIONES 🎭 (DISEÑO ACTUALIZADO ALEXX HUB)
+-- 6. PESTAÑA SCRIPT ANIMACIONES 🎭 (DISEÑO ALEXX HUB)
 -- ==========================================
 local ScriptsTab = Window:CreateTab("Script Animaciones", 4483362458)
 
@@ -444,7 +443,6 @@ ScriptsTab:CreateButton({
         local TweenService = game:GetService("TweenService")
         local LP = game:GetService("Players").LocalPlayer
 
-        -- Paleta de colores VIP (Estilo Nova Dark Premium)
         local T = {
             bg     = Color3.fromRGB(10, 10, 14),
             panel  = Color3.fromRGB(20, 20, 30),
@@ -770,7 +768,7 @@ ScriptsTab:CreateButton({
 -- EVENTOS Y PROCESOS PERSISTENTES (BACKGROUND)
 -- ==========================================
 
--- Listeners para Chams Tradicionales (Dark Hub)
+-- Listeners para Chams Tradicionales
 Players.PlayerAdded:Connect(function(player)
     if ChamsEnabled then ApplyChams(player) end
 end)
@@ -829,4 +827,4 @@ task.spawn(function()
     end)
 end)
 
-Rayfield:Notify({Title = "ALEXX HUB VIP LOADED", Content = "Todo listo, Alexx. Menú híbrido 100% funcional.", Duration = 5})
+Rayfield:Notify({Title = "ALEXX HUB VIP LOADED", Content = "Todo listo, Alexx. Filtros de colisión estática aplicados.", Duration = 5})
