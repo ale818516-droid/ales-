@@ -428,16 +428,16 @@ MoveTab:CreateToggle({
 
 
 -- ==========================================
--- 6. PESTAÑA SCRIPT ANIMACIONES 🎭 (DISEÑO ALEXX HUB)
+-- 3. PESTAÑA SCRIPT ANIMACIONES 🎭
 -- ==========================================
 local ScriptsTab = Window:CreateTab("Script Animaciones", 4483362458)
 
 ScriptsTab:CreateButton({
-    Name = "Animaciones",
+    Name = "Abrir Panel de Animaciones",
     Callback = function()
 
-        if game.CoreGui:FindFirstChild("DARK_HUB_ANIMS") then
-            game.CoreGui.DARK_HUB_ANIMS:Destroy()
+        if game.CoreGui:FindFirstChild("ALEXX_HUB_ANIMS") then
+            game.CoreGui.ALEXX_HUB_ANIMS:Destroy()
         end
 
         local TweenService = game:GetService("TweenService")
@@ -452,11 +452,11 @@ ScriptsTab:CreateButton({
             red    = Color3.fromRGB(255, 75, 75),
         }
 
-        local SelectedAnim = {}
+        local SelectedAnim = nil
         local minimized = false
 
         local ScreenGui = Instance.new("ScreenGui")
-        ScreenGui.Name = "DARK_HUB_ANIMS"
+        ScreenGui.Name = "ALEXX_HUB_ANIMS"
         ScreenGui.Parent = game.CoreGui
 
         local Main = Instance.new("Frame", ScreenGui)
@@ -557,8 +557,9 @@ ScriptsTab:CreateButton({
         Layout.SortOrder = Enum.SortOrder.LayoutOrder
 
         local function ApplyAnims(ids)
-            local char = LP.Character or LP.CharacterAdded:Wait()
-            local Animate = char:WaitForChild("Animate",5)
+            if not ids then return end
+            local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+            local Animate = char:WaitForChild("Animate", 10)
             if not Animate then return end
 
             pcall(function()
@@ -570,6 +571,16 @@ ScriptsTab:CreateButton({
                 Animate.fall.FallAnim.AnimationId = ids.fall or "0"
             end)
         end
+
+        localPlayer.CharacterAdded:Connect(function(newChar)
+            local Animate = newChar:WaitForChild("Animate", 10)
+            if Animate and SelectedAnim then
+                for i = 1, 5 do
+                    ApplyAnims(SelectedAnim)
+                    task.wait(0.5)
+                end
+            end
+        end)
 
         local function CreateButton(name, ids)
             local Btn = Instance.new("TextButton", Scroll)
@@ -597,178 +608,22 @@ ScriptsTab:CreateButton({
             end)
         end
 
-        CreateButton("Astronaut", {
-            idle1 = "http://www.roblox.com/asset/?id=891621366",
-            idle2 = "http://www.roblox.com/asset/?id=891633237",
-            walk  = "http://www.roblox.com/asset/?id=891667138",
-            run   = "http://www.roblox.com/asset/?id=891636393",
-            jump  = "http://www.roblox.com/asset/?id=891627522",
-            fall  = "http://www.roblox.com/asset/?id=891617961"
-        })
-
-        CreateButton("Bubbly", {
-            idle1 = "http://www.roblox.com/asset/?id=910004836",
-            idle2 = "http://www.roblox.com/asset/?id=910009958",
-            walk  = "http://www.roblox.com/asset/?id=910034870",
-            run   = "http://www.roblox.com/asset/?id=910025107",
-            jump  = "http://www.roblox.com/asset/?id=910016857",
-            fall  = "http://www.roblox.com/asset/?id=910001910"
-        })
-
-        CreateButton("Ninja", {
-            idle1 = "http://www.roblox.com/asset/?id=656117400",
-            idle2 = "http://www.roblox.com/asset/?id=656118341",
-            walk  = "http://www.roblox.com/asset/?id=656121766",
-            run   = "http://www.roblox.com/asset/?id=656118852",
-            jump  = "http://www.roblox.com/asset/?id=656117878",
-            fall  = "http://www.roblox.com/asset/?id=656115606"
-        })
-
-        CreateButton("Zombie", {
-            idle1 = "http://www.roblox.com/asset/?id=616158929",
-            idle2 = "http://www.roblox.com/asset/?id=616160636",
-            walk  = "http://www.roblox.com/asset/?id=616168032",
-            run   = "http://www.roblox.com/asset/?id=616163682",
-            jump  = "http://www.roblox.com/asset/?id=616161997",
-            fall  = "http://www.roblox.com/asset/?id=616157476"
-        })
-
-        CreateButton("Stylish", {
-            idle1 = "http://www.roblox.com/asset/?id=616136790",
-            idle2 = "http://www.roblox.com/asset/?id=616138447",
-            walk  = "http://www.roblox.com/asset/?id=616146177",
-            run   = "http://www.roblox.com/asset/?id=616140816",
-            jump  = "http://www.roblox.com/asset/?id=616139451",
-            fall  = "http://www.roblox.com/asset/?id=616134815"
-        })
-
-        CreateButton("SuperHero", {
-            idle1 = "http://www.roblox.com/asset/?id=616111295",
-            idle2 = "http://www.roblox.com/asset/?id=616113536",
-            walk  = "http://www.roblox.com/asset/?id=616122287",
-            run   = "http://www.roblox.com/asset/?id=616117076",
-            jump  = "http://www.roblox.com/asset/?id=616115533",
-            fall  = "http://www.roblox.com/asset/?id=616108001"
-        })
-
-        CreateButton("Robot", {
-            idle1 = "http://www.roblox.com/asset/?id=616088211",
-            idle2 = "http://www.roblox.com/asset/?id=616089559",
-            walk  = "http://www.roblox.com/asset/?id=616095330",
-            run   = "http://www.roblox.com/asset/?id=616091570",
-            jump  = "http://www.roblox.com/asset/?id=616090535",
-            fall  = "http://www.roblox.com/asset/?id=616087089"
-        })
-
-        CreateButton("Knight", {
-            idle1 = "http://www.roblox.com/asset/?id=657595757",
-            idle2 = "http://www.roblox.com/asset/?id=657568135",
-            walk  = "http://www.roblox.com/asset/?id=657552124",
-            run   = "http://www.roblox.com/asset/?id=657564596",
-            jump  = "http://www.roblox.com/asset/?id=658409194",
-            fall  = "http://www.roblox.com/asset/?id=657600338"
-        })
-
-        CreateButton("Levitation", {
-            idle1 = "http://www.roblox.com/asset/?id=616006778",
-            idle2 = "http://www.roblox.com/asset/?id=616008087",
-            walk  = "http://www.roblox.com/asset/?id=616013216",
-            run   = "http://www.roblox.com/asset/?id=616010382",
-            jump  = "http://www.roblox.com/asset/?id=616008936",
-            fall  = "http://www.roblox.com/asset/?id=616005863"
-        })
-
-        CreateButton("Mage", {
-            idle1 = "http://www.roblox.com/asset/?id=707742142",
-            idle2 = "http://www.roblox.com/asset/?id=707855907",
-            walk  = "http://www.roblox.com/asset/?id=707897309",
-            run   = "http://www.roblox.com/asset/?id=707861613",
-            jump  = "http://www.roblox.com/asset/?id=707853694",
-            fall  = "http://www.roblox.com/asset/?id=707829716"
-        })
-
-        CreateButton("Pirate", {
-            idle1 = "http://www.roblox.com/asset/?id=750781874",
-            idle2 = "http://www.roblox.com/asset/?id=750782770",
-            walk  = "http://www.roblox.com/asset/?id=750785693",
-            run   = "http://www.roblox.com/asset/?id=750783738",
-            jump  = "http://www.roblox.com/asset/?id=750782230",
-            fall  = "http://www.roblox.com/asset/?id=750780242"
-        })
-
-        CreateButton("Toy", {
-            idle1 = "http://www.roblox.com/asset/?id=782841498",
-            idle2 = "http://www.roblox.com/asset/?id=782845736",
-            walk  = "http://www.roblox.com/asset/?id=782843345",
-            run   = "http://www.roblox.com/asset/?id=782842708",
-            jump  = "http://www.roblox.com/asset/?id=782847020",
-            fall  = "http://www.roblox.com/asset/?id=782846423"
-        })
-
-        CreateButton("Vampire", {
-            idle1 = "http://www.roblox.com/asset/?id=1083445855",
-            idle2 = "http://www.roblox.com/asset/?id=1083450166",
-            walk  = "http://www.roblox.com/asset/?id=1083473930",
-            run   = "http://www.roblox.com/asset/?id=1083462077",
-            jump  = "http://www.roblox.com/asset/?id=1083455352",
-            fall  = "http://www.roblox.com/asset/?id=1083443587"
-        })
-
-        CreateButton("Werewolf", {
-            idle1 = "http://www.roblox.com/asset/?id=1083195517",
-            idle2 = "http://www.roblox.com/asset/?id=1083214717",
-            walk  = "http://www.roblox.com/asset/?id=1083178339",
-            run   = "http://www.roblox.com/asset/?id=1083216690",
-            jump  = "http://www.roblox.com/asset/?id=1083218792",
-            fall  = "http://www.roblox.com/asset/?id=1083189019"
-        })
-
-        CreateButton("Cowboy", {
-            idle1 = "http://www.roblox.com/asset/?id=1014390418",
-            idle2 = "http://www.roblox.com/asset/?id=1014398616",
-            walk  = "http://www.roblox.com/asset/?id=1014421541",
-            run   = "http://www.roblox.com/asset/?id=1014401683",
-            jump  = "http://www.roblox.com/asset/?id=1014394726",
-            fall  = "http://www.roblox.com/asset/?id=1014384571"
-        })
-
-        CreateButton("Confident", {
-            idle1 = "http://www.roblox.com/asset/?id=1069977950",
-            idle2 = "http://www.roblox.com/asset/?id=1069987858",
-            walk  = "http://www.roblox.com/asset/?id=1070017263",
-            run   = "http://www.roblox.com/asset/?id=1070001516",
-            jump  = "http://www.roblox.com/asset/?id=1069984524",
-            fall  = "http://www.roblox.com/asset/?id=1069973677"
-        })
-
-        CreateButton("Sneaky", {
-            idle1 = "http://www.roblox.com/asset/?id=1132473842",
-            idle2 = "http://www.roblox.com/asset/?id=1132477671",
-            walk  = "http://www.roblox.com/asset/?id=1132510133",
-            run   = "http://www.roblox.com/asset/?id=1132494274",
-            jump  = "http://www.roblox.com/asset/?id=1132489853",
-            fall  = "http://www.roblox.com/asset/?id=1132469004"
-        })
-
-        CreateButton("Princess", {
-            idle1 = "http://www.roblox.com/asset/?id=941003647",
-            idle2 = "http://www.roblox.com/asset/?id=941013098",
-            walk  = "http://www.roblox.com/asset/?id=941028902",
-            run   = "http://www.roblox.com/asset/?id=941015281",
-            jump  = "http://www.roblox.com/asset/?id=941008832",
-            fall  = "http://www.roblox.com/asset/?id=941000007"
-        })
+        CreateButton("Astronaut", { idle1 = "http://www.roblox.com/asset/?id=891621366", idle2 = "http://www.roblox.com/asset/?id=891633237", walk = "http://www.roblox.com/asset/?id=891667138", run = "http://www.roblox.com/asset/?id=891636393", jump = "http://www.roblox.com/asset/?id=891627522", fall = "http://www.roblox.com/asset/?id=891617961" })
+        CreateButton("Bubbly", { idle1 = "http://www.roblox.com/asset/?id=910004836", idle2 = "http://www.roblox.com/asset/?id=910009958", walk = "http://www.roblox.com/asset/?id=910034870", run = "http://www.roblox.com/asset/?id=910025107", jump = "http://www.roblox.com/asset/?id=910016857", fall = "http://www.roblox.com/asset/?id=910001910" })
+        CreateButton("Ninja", { idle1 = "http://www.roblox.com/asset/?id=656117400", idle2 = "http://www.roblox.com/asset/?id=656118341", walk = "http://www.roblox.com/asset/?id=656121766", run = "http://www.roblox.com/asset/?id=656118852", jump = "http://www.roblox.com/asset/?id=656117878", fall = "http://www.roblox.com/asset/?id=656115606" })
+        CreateButton("Zombie", { idle1 = "http://www.roblox.com/asset/?id=616158929", idle2 = "http://www.roblox.com/asset/?id=616160636", walk = "http://www.roblox.com/asset/?id=616168032", run = "http://www.roblox.com/asset/?id=616163682", jump = "http://www.roblox.com/asset/?id=616161997", fall = "http://www.roblox.com/asset/?id=616157476" })
+        CreateButton("Stylish", { idle1 = "http://www.roblox.com/asset/?id=616136790", idle2 = "http://www.roblox.com/asset/?id=616138447", walk = "http://www.roblox.com/asset/?id=616146177", run = "http://www.roblox.com/asset/?id=616140816", jump = "http://www.roblox.com/asset/?id=616139451", fall = "http://www.roblox.com/asset/?id=616134815" })
+        CreateButton("SuperHero", { idle1 = "http://www.roblox.com/asset/?id=616111295", idle2 = "http://www.roblox.com/asset/?id=616113536", walk = "http://www.roblox.com/asset/?id=616122287", run = "http://www.roblox.com/asset/?id=616117076", jump = "http://www.roblox.com/asset/?id=616115533", fall = "http://www.roblox.com/asset/?id=616108001" })
+        CreateButton("Robot", { idle1 = "http://www.roblox.com/asset/?id=616088211", idle2 = "http://www.roblox.com/asset/?id=616089559", walk = "http://www.roblox.com/asset/?id=616095330", run = "http://www.roblox.com/asset/?id=616091570", jump = "http://www.roblox.com/asset/?id=616090535", fall = "http://www.roblox.com/asset/?id=616087089" })
 
         Main:TweenPosition(UDim2.new(0.5,-120,0.5,-150),"Out","Back",0.7,true)
     end
 })
 
-
 -- ==========================================
--- EVENTOS Y PROCESOS PERSISTENTES (BACKGROUND)
+-- EVENTOS PERSISTENTES BACKGROUND
 -- ==========================================
 
--- Listeners para Chams Tradicionales
 Players.PlayerAdded:Connect(function(player)
     if ChamsEnabled then ApplyChams(player) end
 end)
