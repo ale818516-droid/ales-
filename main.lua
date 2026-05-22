@@ -619,7 +619,6 @@ ScriptsTab:CreateButton({
         Main:TweenPosition(UDim2.new(0.5,-120,0.5,-150),"Out","Back",0.7,true)
     end
 })
-
 -- ==========================================
 -- EVENTOS PERSISTENTES BACKGROUND
 -- ==========================================
