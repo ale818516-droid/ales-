@@ -187,46 +187,49 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- PARTE 2: El mismo Silent Aim Matemático Puro (Sin Raycast, 100% Efectivo)
+-- PARTE 2: Silent Auto Shoot con Predicción de Alta Precisión
 local function startSilentShootLoop()
-    print("Bucle permanente de Silent Aim Puro iniciado.")
+    print("Bucle permanente de Silent Aim con Predicción iniciado.")
     
     while _G.AimbotComboEnabled do
         local char = LocalPlayer.Character
         local gun = char and char:FindFirstChild("Gun")
         local root = char and char:FindFirstChild("HumanoidRootPart")
         
-        if gun and root then
+        if gun and gun:FindFirstChild("Shoot") and root then
             local murdererChar = getMurderer()
             
-            if murdererChar then
-                local muderRoot = murdererChar:FindFirstChild("HumanoidRootPart")
-                local muderHitbox = murdererChar:FindFirstChild("UpperTorso") or murdererChar:FindFirstChild("Torso") or muderRoot
+            if murdererChar and murdererChar:FindFirstChild("HumanoidRootPart") then
+                local targetHRP = murdererChar.HumanoidRootPart
+                local direction = (targetHRP.Position - root.Position)
                 
-                if muderRoot and muderHitbox then
-                    local gunHandle = gun:FindFirstChild("Handle") or root
+                -- Crear Raycast para verificar línea de visión real
+                local rayParams = RaycastParams.new()
+                rayParams.FilterDescendantsInstances = {char, Workspace.CurrentCamera}
+                rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                
+                local result = Workspace:Raycast(root.Position, direction, rayParams)
+                
+                -- Solo dispara si es visible (evita paredes)
+                if result and result.Instance:IsDescendantOf(murdererChar) then
+                    -- Cálculo matemático de predicción de movimiento
+                    local vel = targetHRP.AssemblyLinearVelocity
+                    local dist = direction.Magnitude
+                    local prediction = vel * (dist / 500) * 0.30
+                    local targetPos = targetHRP.CFrame + prediction
                     
-                    local originPos = gunHandle.Position
-                    local targetPos = muderRoot.Position + Vector3.new(0, 0.5, 0) -- Pecho/Cabeza
+                    -- Ejecutar disparo mediante el evento remoto de tu arma
+                    gun.Shoot:FireServer(root.CFrame, targetPos)
                     
-                    -- Disparo forzado directo mediante tu evento Cobalt idéntico
-                    GunFiredRemote:FireServer(
-                        gunHandle,
-                        originPos,
-                        targetPos,
-                        muderHitbox
-                    )
-                    
-                    print("¡Silent Shot puro enviado con éxito!")
-                    task.wait(1.2) -- Cooldown exacto para evitar atascar el arma
+                    print("¡Silent Shot con predicción ejecutado!")
+                    task.wait(0.15) -- Cooldown de seguridad para evitar filtros del servidor
                 end
             end
         end
-        task.wait(0.01) -- Escaneo a velocidad máxima (0.01) para cazar movimientos bruscos
+        task.wait(0.02) -- Escaneo constante a alta velocidad
     end
-    print("Silent Aim Puro detenido.")
+    print("Silent Aim con Predicción detenido.")
 end
-
 
 -- [INTERFAZ MENÚ WINDUI] --
 
