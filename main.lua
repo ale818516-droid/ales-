@@ -25,28 +25,20 @@ local LocalPlayer = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
--- Variables requeridas para el ESP (Asegúrate de tenerlas arriba en tu script)
-local ESPEnabled = false
-local PlayerRoles = {}
+-- [SISTEMA ESP DE ROLES COMPLETO - CON CANDADO POR ROLES] --
+
+-- Variables de control (Asegúrate de tenerlas declaradas)
+local ESPEnabled = ESPEnabled or false
+local PlayerRoles = PlayerRoles or {}
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
 local COLORS = {
     Murderer = Color3.fromRGB(255, 0, 0),
     Sheriff = Color3.fromRGB(0, 0, 255),
     Innocent = Color3.fromRGB(0, 255, 0)
 }
 
--- Función auxiliar para comprobar si la ronda está activa (Evita activarse en el lobby)
-local function isRoundActive()
-    local localRole = PlayerRoles[LocalPlayer.Name]
-    if localRole and localRole ~= "" then
-        return true
-    end
-    if workspace:FindFirstChild("Normal") or workspace:FindFirstChild("Infection") then
-        return true
-    end
-    return false
-end
-
--- Funciones principales del ESP
+-- Función limpia para remover el Highlight visual
 local function removeESP(player)
     if player.Character then
         local highlight = player.Character:FindFirstChild("RoleESP")
@@ -54,8 +46,19 @@ local function removeESP(player)
     end
 end
 
+-- Función auxiliar para verificar si la partida está activa según tus datos
+local function isRoundActive()
+    -- Candado inteligente: Si tú tienes un rol asignado, la partida está corriendo
+    local myRole = PlayerRoles[LocalPlayer.Name]
+    if myRole and myRole ~= "" and myRole ~= "Lobby" then
+        return true
+    end
+    return false
+end
+
+-- Función principal que pinta a los jugadores
 local function updatePlayerESP(player)
-    -- Solo actúa si el botón está prendido, es partida activa y no eres tú mismo
+    -- Si el botón está apagado, eres tú mismo, o no ha iniciado la ronda, se borra
     if not ESPEnabled or player == LocalPlayer or not isRoundActive() then 
         removeESP(player)
         return 
@@ -64,9 +67,10 @@ local function updatePlayerESP(player)
     local char = player.Character
     if not char then return end
 
+    -- Obtener rol de la tabla o dejarlo como Inocente por defecto
     local role = PlayerRoles[player.Name] or "Innocent"
     
-    -- Verificación en tiempo real de la pistola en mochila o mano
+    -- Verificación en tiempo real por si saca o agarra la pistola física
     if player.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun") then
         role = "Sheriff"
     end
@@ -86,24 +90,32 @@ local function updatePlayerESP(player)
     highlight.OutlineTransparency = 0
 end
 
--- Procesar evento remoto original de roles (Actualización segura sin pérdida de datos)
+-- Procesar evento remoto original PlayerDataChanged sin pérdida de datos
 local DataChangedEvent = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Gameplay"):WaitForChild("PlayerDataChanged")
 DataChangedEvent.OnClientEvent:Connect(function(dataPacket)
     if type(dataPacket) == "table" then
-        -- Se actualiza posición por posición en vez de borrar toda la tabla completa
+        -- Guardar los roles nuevos en la tabla posición por posición
         for playerName, info in pairs(dataPacket) do
             if info and info.Role then
                 PlayerRoles[playerName] = info.Role
             end
         end
         
-        for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
-            updatePlayerESP(player)
+        -- Si la ronda está activa, actualiza los colores; si no, limpia todo
+        if isRoundActive() then
+            for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+                updatePlayerESP(player)
+            end
+        else
+            table.clear(PlayerRoles)
+            for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+                removeESP(player)
+            end
         end
     end
 end)
 
--- Monitoreo clásico de mochilas original
+-- Monitoreo clásico de mochilas en tiempo real
 local function setupPlayerTracking(player)
     player.Backpack.ChildAdded:Connect(function(child)
         if child.Name == "Gun" then task.wait(0.1) updatePlayerESP(player) end
@@ -117,20 +129,19 @@ local function setupPlayerTracking(player)
     end)
 end
 
+-- Inicializar escuchadores en los jugadores
 for _, player in ipairs(game:GetService("Players"):GetPlayers()) do setupPlayerTracking(player) end
 game:GetService("Players").PlayerAdded:Connect(setupPlayerTracking)
 
--- Limpieza automática total al terminar la ronda (Cuando el mapa se borra del workspace)
+-- LIMPIADOR DE SEGURIDAD ABSOLUTO (Cuando se destruye el mapa/limpieza de ronda)
 workspace.ChildRemoved:Connect(function(child)
-    if child.Name == "Normal" or child.Name == "Infection" then
+    if child.Name == "Normal" or child.Name == "Infection" or child.Name == "Assassin" then
         table.clear(PlayerRoles)
         for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
             removeESP(player)
         end
     end
 end)
-
-
 
 -- [AUTO TP AUTOMÁTICO - MÉTODO COIN FARM CON AUTO-RESET] --
 local function startGunDropLoop()
@@ -289,6 +300,124 @@ MainTab:Toggle({
         _G.AimbotComboEnabled = state
         if _G.AimbotComboEnabled then
             coroutine.wrap(startSilentShootLoop)()
+        end
+    end
+})
+
+-- [SISTEMA ESP DE LA PISTOLA TIRADA - MÉTODO REAL DE MM2] --
+
+_G.GunESPEnabled = _G.GunESPEnabled or false
+
+-- Función para buscar el objeto físico de la pistola en el mapa
+local function findDroppedGun()
+    -- En MM2 la pistola tirada se genera como un objeto llamado "GunDrop" directamente en el Workspace
+    local gun = workspace:FindFirstChild("GunDrop")
+    if gun and gun:IsA("BasePart") then
+        return gun
+    end
+    
+    -- Respaldo: Buscar por si se metió dentro de la carpeta del mapa actual
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name == "GunDrop" and obj:IsA("BasePart") then
+            return obj
+        end
+    end
+    return nil
+end
+
+local function applyGunEffects(obj)
+    if not obj or not obj:IsA("BasePart") then return end
+    if obj:FindFirstChild("GunVisualESP") then return end
+    
+    -- Caja visual (Box) sobre el arma tirada
+    local box = Instance.new("BoxHandleAdorner")
+    box.Name = "GunVisualESP"
+    box.Size = Vector3.new(1.5, 1.5, 1.5) -- Tamaño perfecto para que se note en el suelo
+    box.AlwaysOnTop = true
+    box.ZIndex = 10
+    box.Color3 = Color3.fromRGB(0, 150, 255) -- Azul brillante
+    box.Transparency = 0.4
+    box.Adornee = obj
+    box.Parent = obj
+    
+    -- Línea trazadora (Tracer)
+    local tracer = Drawing.new("Line")
+    tracer.Visible = true
+    tracer.Color = Color3.fromRGB(0, 150, 255)
+    tracer.Thickness = 2.5
+    tracer.Transparency = 0.8
+    
+    -- Actualización en tiempo real del Tracer hacia la posición de la pistola
+    local connection
+    connection = game:GetService("RunService").RenderStepped:Connect(function()
+        local isPlaying = workspace:FindFirstChild("Normal") or workspace:FindFirstChild("Infection") or workspace:FindFirstChild("Assassin")
+        
+        -- Si se borra la pistola, apagas el botón, o vas al lobby, se elimina el tracer
+        if not obj or not obj.Parent or not _G.GunESPEnabled or not isPlaying then 
+            tracer:Remove()
+            if connection then connection:Disconnect() end
+            return
+        end
+        
+        local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(obj.Position)
+        if onScreen then
+            tracer.From = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y)
+            tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+            tracer.Visible = true
+        else
+            tracer.Visible = false
+        end
+    end)
+end
+
+-- BUCLE DE ESCANEO ACTIVO CONSTANTE
+task.spawn(function()
+    while true do
+        local isPlaying = workspace:FindFirstChild("Normal") or workspace:FindFirstChild("Infection") or workspace:FindFirstChild("Assassin")
+        
+        if _G.GunESPEnabled and isPlaying then
+            local gunInstance = findDroppedGun()
+            if gunInstance then
+                applyGunEffects(gunInstance)
+            end
+        else
+            -- Limpieza automática de cajas si el switch está apagado o estás en el lobby
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj.Name == "GunDrop" and obj:IsA("BasePart") then
+                    local box = obj:FindFirstChild("GunVisualESP")
+                    if box then box:Destroy() end
+                end
+            end
+        end
+        task.wait(0.2) -- Escaneo continuo cada 200 milisegundos
+    end
+end)
+
+-- Asegurar borrado total cuando el mapa se remueve
+workspace.ChildRemoved:Connect(function(child)
+    if child.Name == "Normal" or child.Name == "Infection" or child.Name == "Assassin" then
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            local box = obj:FindFirstChild("GunVisualESP")
+            if box then box:Destroy() end
+        end
+    end
+end)
+
+-- Toggle para Activar/Desactivar el ESP de la Pistola Tirada (Rastreo de MM2)
+MainTab:Toggle({
+    Title = "Gun Drop ESP (Rastreo Físico)",
+    Default = false,
+    Callback = function(state)
+        _G.GunESPEnabled = state
+        
+        -- Si se desactiva manualmente, limpia las cajas del mapa al instante
+        if not _G.GunESPEnabled then
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj.Name == "GunDrop" and obj:IsA("BasePart") then
+                    local box = obj:FindFirstChild("GunVisualESP")
+                    if box then box:Destroy() end
+                end
+            end
         end
     end
 })
