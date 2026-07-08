@@ -16,7 +16,7 @@ local MainTab = Window:Tab({
 })
 
 -- Variables de control
-local ESPEnabled = false
+
 _G.GunTPEnabled = false
 _G.AimbotComboEnabled = false
 
@@ -25,16 +25,28 @@ local LocalPlayer = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
-
+-- Variables requeridas para el ESP (Asegúrate de tenerlas arriba en tu script)
+local ESPEnabled = false
 local PlayerRoles = {}
-
 local COLORS = {
     Murderer = Color3.fromRGB(255, 0, 0),
     Sheriff = Color3.fromRGB(0, 0, 255),
     Innocent = Color3.fromRGB(0, 255, 0)
 }
 
--- [SISTEMA ESP ORIGINAL - COMPLETO] --
+-- Función auxiliar para comprobar si la ronda está activa (Evita activarse en el lobby)
+local function isRoundActive()
+    local localRole = PlayerRoles[LocalPlayer.Name]
+    if localRole and localRole ~= "" then
+        return true
+    end
+    if workspace:FindFirstChild("Normal") or workspace:FindFirstChild("Infection") then
+        return true
+    end
+    return false
+end
+
+-- Funciones principales del ESP
 local function removeESP(player)
     if player.Character then
         local highlight = player.Character:FindFirstChild("RoleESP")
@@ -43,7 +55,8 @@ local function removeESP(player)
 end
 
 local function updatePlayerESP(player)
-    if not ESPEnabled or player == LocalPlayer then 
+    -- Solo actúa si el botón está prendido, es partida activa y no eres tú mismo
+    if not ESPEnabled or player == LocalPlayer or not isRoundActive() then 
         removeESP(player)
         return 
     end
@@ -53,6 +66,7 @@ local function updatePlayerESP(player)
 
     local role = PlayerRoles[player.Name] or "Innocent"
     
+    -- Verificación en tiempo real de la pistola en mochila o mano
     if player.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun") then
         role = "Sheriff"
     end
@@ -72,19 +86,18 @@ local function updatePlayerESP(player)
     highlight.OutlineTransparency = 0
 end
 
--- Procesar evento remoto original de roles
-local DataChangedEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Gameplay"):WaitForChild("PlayerDataChanged")
+-- Procesar evento remoto original de roles (Actualización segura sin pérdida de datos)
+local DataChangedEvent = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Gameplay"):WaitForChild("PlayerDataChanged")
 DataChangedEvent.OnClientEvent:Connect(function(dataPacket)
     if type(dataPacket) == "table" then
-        table.clear(PlayerRoles)
-        
+        -- Se actualiza posición por posición en vez de borrar toda la tabla completa
         for playerName, info in pairs(dataPacket) do
             if info and info.Role then
                 PlayerRoles[playerName] = info.Role
             end
         end
         
-        for _, player in ipairs(Players:GetPlayers()) do
+        for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
             updatePlayerESP(player)
         end
     end
@@ -104,8 +117,19 @@ local function setupPlayerTracking(player)
     end)
 end
 
-for _, player in ipairs(Players:GetPlayers()) do setupPlayerTracking(player) end
-Players.PlayerAdded:Connect(setupPlayerTracking)
+for _, player in ipairs(game:GetService("Players"):GetPlayers()) do setupPlayerTracking(player) end
+game:GetService("Players").PlayerAdded:Connect(setupPlayerTracking)
+
+-- Limpieza automática total al terminar la ronda (Cuando el mapa se borra del workspace)
+workspace.ChildRemoved:Connect(function(child)
+    if child.Name == "Normal" or child.Name == "Infection" then
+        table.clear(PlayerRoles)
+        for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+            removeESP(player)
+        end
+    end
+end)
+
 
 
 -- [AUTO TP AUTOMÁTICO - MÉTODO COIN FARM CON AUTO-RESET] --
