@@ -18,12 +18,13 @@ local MainTab = Window:Tab({
 -- Variables de control
 local ESPEnabled = false
 _G.GunTPEnabled = false
-_G.AutoShootEnabled = false
+_G.AimbotComboEnabled = false
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local PlayerRoles = {}
 
@@ -33,7 +34,7 @@ local COLORS = {
     Innocent = Color3.fromRGB(0, 255, 0)
 }
 
--- [SISTEMA ESP ORIGINAL - TOTALMENTE RESTAURADO] --
+-- [SISTEMA ESP ORIGINAL - COMPLETO] --
 local function removeESP(player)
     if player.Character then
         local highlight = player.Character:FindFirstChild("RoleESP")
@@ -71,7 +72,7 @@ local function updatePlayerESP(player)
     highlight.OutlineTransparency = 0
 end
 
--- [PROCESAR EVENTO REMOTO ORIGINAL] --
+-- Procesar evento remoto original de roles
 local DataChangedEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Gameplay"):WaitForChild("PlayerDataChanged")
 DataChangedEvent.OnClientEvent:Connect(function(dataPacket)
     if type(dataPacket) == "table" then
@@ -89,7 +90,7 @@ DataChangedEvent.OnClientEvent:Connect(function(dataPacket)
     end
 end)
 
--- Monitoreo de mochilas original
+-- Monitoreo clásico de mochilas original
 local function setupPlayerTracking(player)
     player.Backpack.ChildAdded:Connect(function(child)
         if child.Name == "Gun" then task.wait(0.1) updatePlayerESP(player) end
@@ -150,60 +151,80 @@ local function startGunDropLoop()
 end
 
 
--- [SISTEMA AUTO SHOOT (DISPARO AUTOMÁTICO AL ASESINO)] --
+-- [COMBINACIÓN COMPLETA: SEGUIMIENTO DE CÁMARA + EL MISMO SILENT AIM MATEMÁTICO] --
+local Camera = Workspace.CurrentCamera
 local GunFiredRemote = ReplicatedStorage:WaitForChild("ClientServices"):WaitForChild("WeaponService"):WaitForChild("GunFired")
 
 local function getMurderer()
     for playerName, role in pairs(PlayerRoles) do
         if role == "Murderer" then
             local p = Players:FindFirstChild(playerName)
-            if p and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
-                return p.Character
+            if p and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") then
+                if p.Character.Humanoid.Health > 0 then
+                    return p.Character
+                end
             end
         end
     end
     return nil
 end
 
-local function startAutoShootLoop()
-    while _G.AutoShootEnabled do
+-- PARTE 1: Mover la cámara físicamente para seguirlo en pantalla
+RunService.RenderStepped:Connect(function()
+    if not _G.AimbotComboEnabled then return end
+    
+    local char = LocalPlayer.Character
+    local hasGunEquipped = char and char:FindFirstChild("Gun")
+    
+    if hasGunEquipped then
+        local murderer = getMurderer()
+        if murderer then
+            local targetPart = murderer:FindFirstChild("UpperTorso") or murderer:FindFirstChild("Torso") or murderer:FindFirstChild("HumanoidRootPart")
+            if targetPart then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+            end
+        end
+    end
+end)
+
+-- PARTE 2: El mismo Silent Aim Matemático Puro (Sin Raycast, 100% Efectivo)
+local function startSilentShootLoop()
+    print("Bucle permanente de Silent Aim Puro iniciado.")
+    
+    while _G.AimbotComboEnabled do
         local char = LocalPlayer.Character
         local gun = char and char:FindFirstChild("Gun")
         local root = char and char:FindFirstChild("HumanoidRootPart")
         
         if gun and root then
             local murdererChar = getMurderer()
+            
             if murdererChar then
-                local muderRoot = murdererChar.HumanoidRootPart
+                local muderRoot = murdererChar:FindFirstChild("HumanoidRootPart")
+                local muderHitbox = murdererChar:FindFirstChild("UpperTorso") or murdererChar:FindFirstChild("Torso") or muderRoot
                 
-                local rayOrigin = root.Position
-                local rayDirection = (muderRoot.Position - rayOrigin).Unit * 200
-                
-                local raycastParams = RaycastParams.new()
-                raycastParams.FilterDescendantsInstances = {char, Workspace:FindFirstChild("CoinContainer")}
-                raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-                
-                local raycastResult = Workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-                
-                if raycastResult and raycastResult.Instance:IsDescendantOf(murdererChar) then
+                if muderRoot and muderHitbox then
                     local gunHandle = gun:FindFirstChild("Handle") or root
-                    local startPos = gunHandle.Position
-                    local targetPos = muderRoot.Position
                     
-                    -- Disparar usando la estructura capturada de Cobalt
+                    local originPos = gunHandle.Position
+                    local targetPos = muderRoot.Position + Vector3.new(0, 0.5, 0) -- Pecho/Cabeza
+                    
+                    -- Disparo forzado directo mediante tu evento Cobalt idéntico
                     GunFiredRemote:FireServer(
                         gunHandle,
-                        startPos,
+                        originPos,
                         targetPos,
-                        raycastResult.Instance
+                        muderHitbox
                     )
                     
-                    task.wait(1) -- Cooldown para evitar bugs de recarga
+                    print("¡Silent Shot puro enviado con éxito!")
+                    task.wait(1.2) -- Cooldown exacto para evitar atascar el arma
                 end
             end
         end
-        task.wait(0.05)
+        task.wait(0.01) -- Escaneo a velocidad máxima (0.01) para cazar movimientos bruscos
     end
+    print("Silent Aim Puro detenido.")
 end
 
 
@@ -233,14 +254,14 @@ MainTab:Toggle({
     end
 })
 
--- Toggle del Auto Shoot Inteligente
+-- Toggle del Aimbot Combo (Cámara + El Silent Aim Puro Exacto)
 MainTab:Toggle({
-    Title = "Silent Auto Shoot (Al Mirar Asesino)",
+    Title = "Aimbot + Silent Auto Shoot Combo",
     Default = false,
     Callback = function(state)
-        _G.AutoShootEnabled = state
-        if _G.AutoShootEnabled then
-            coroutine.wrap(startAutoShootLoop)()
+        _G.AimbotComboEnabled = state
+        if _G.AimbotComboEnabled then
+            coroutine.wrap(startSilentShootLoop)()
         end
     end
 })
