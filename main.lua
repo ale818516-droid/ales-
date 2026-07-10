@@ -476,12 +476,13 @@ KillSection:Button({
 })
 
 -- ==========================================================
--- CONTADOR DE RONDA EN PANTALLA (Mejor versión)
+-- CONTADOR DE RONDA EN PANTALLA (Auto + Preciso)
 -- ==========================================================
 
 local TimerEnabled = false
 local TimerGui = nil
 local RoundToken = 0
+local isInRound = false
 
 local function CreateRoundTimer()
     if TimerGui then return end
@@ -539,7 +540,7 @@ KillSection:Toggle({
         TimerEnabled = state
         if state then
             CreateRoundTimer()
-            WindUI:Notify({Title = "Timer", Content = "Round Timer Activado", Duration = 3})
+            WindUI:Notify({Title = "Timer", Content = "Round Timer Activado (Auto)", Duration = 3})
         else
             if TimerGui then
                 TimerGui:Destroy()
@@ -549,7 +550,7 @@ KillSection:Toggle({
     end
 })
 
--- Lógica del contador (igual que el que me pasaste)
+-- Lógica del contador
 local Gameplay = game:GetService("ReplicatedStorage")
     :WaitForChild("Remotes")
     :WaitForChild("Gameplay")
@@ -561,6 +562,7 @@ local GameOver = Gameplay:WaitForChild("GameOver")
 RoundStart.OnClientEvent:Connect(function(Time)
     if typeof(Time) ~= "number" or not TimerEnabled then return end
 
+    isInRound = true
     RoundToken += 1
     local Token = RoundToken
 
@@ -573,11 +575,7 @@ RoundStart.OnClientEvent:Connect(function(Time)
         local warned60 = false
         local warned30 = false
 
-        while t >= 0 do
-            if Token ~= RoundToken or not TimerEnabled then
-                return
-            end
-
+        while t >= 0 and isInRound and Token == RoundToken and TimerEnabled do
             UpdateRoundTimer(t)
 
             if t <= 30 and not warned30 then
@@ -595,6 +593,7 @@ RoundStart.OnClientEvent:Connect(function(Time)
 end)
 
 local function StopRound()
+    isInRound = false
     RoundToken += 1
     if TimerGui then
         TimerGui.Enabled = false
@@ -608,5 +607,20 @@ end
 
 RoundEndFade.OnClientEvent:Connect(StopRound)
 GameOver.OnClientEvent:Connect(StopRound)
+
+-- Auto-detección por si el evento falla
+task.spawn(function()
+    while task.wait(3) do
+        if TimerEnabled and not isInRound then
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:GetAttribute("Time") and obj:GetAttribute("Time") > 10 then
+                    isInRound = true
+                    if TimerGui then TimerGui.Enabled = true end
+                    break
+                end
+            end
+        end
+    end
+end)
 print("✅ 3 Botones de Kill agregados correctamente (Murder Tools)")
 print("✅ Nexora Framework migrado a WindUI correctamente.")
