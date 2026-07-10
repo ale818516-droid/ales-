@@ -198,34 +198,54 @@ FarmSection:Toggle({
     Default = false,
     Callback = function(state)
         _G.AntiMurderer = state
-        print("Anti-Murderer activado: " .. tostring(state))
+        WindUI:Notify({
+            Title = "Anti-Murderer",
+            Content = state and "Activado (Modo Seguro)" or "Desactivado",
+            Duration = 2
+        })
     end
 })
 
--- Lógica Anti-Murderer
+-- Lógica Anti-Murderer Mejorada
 task.spawn(function()
-    while task.wait(0.2) do
-        if _G.AntiMurderer then
-            local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-            if myHrp then
-                -- Escanear jugadores
-                for _, player in pairs(Players:GetPlayers()) do
-                    if player ~= LP and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        -- Aquí se asume que el juego actualiza el rol en un Attribute o similar, 
-                        -- si tu script de Cobalt lo maneja distinto, ajusta esta línea:
-                        local role = player:GetAttribute("Role") -- Ajusta según como detecte el rol tu juego
-                        
-                        if role == "Murderer" then
-                            local mHrp = player.Character.HumanoidRootPart
-                            local dist = (myHrp.Position - mHrp.Position).Magnitude
-                            
-                            if dist < 30 then -- Distancia de seguridad
-                                local direction = (myHrp.Position - mHrp.Position).Unit
-                                myHrp.CFrame = myHrp.CFrame + (direction * 15)
-                            end
+    while task.wait(0.15) do
+        if not _G.AntiMurderer then continue end
+
+        local myChar = LP.Character
+        local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if not myHrp then continue end
+
+        local closestMurderer = nil
+        local closestDist = math.huge
+
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LP and player.Character then
+                local role = player:GetAttribute("Role") or "Innocent"
+                
+                -- Mejor detección de Murderer
+                if role == "Murderer" or player.Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife") then
+                    local mHrp = player.Character:FindFirstChild("HumanoidRootPart")
+                    if mHrp then
+                        local dist = (myHrp.Position - mHrp.Position).Magnitude
+                        if dist < closestDist then
+                            closestDist = dist
+                            closestMurderer = mHrp
                         end
                     end
                 end
+            end
+        end
+
+        if closestMurderer and closestDist < 35 then  -- Radio de detección
+            local direction = (myHrp.Position - closestMurderer.Position).Unit
+            local newCFrame = myHrp.CFrame + (direction * 12)  -- Menos agresivo
+            
+            -- Movimiento suave
+            myHrp.CFrame = CFrame.new(newCFrame.Position, closestMurderer.Position)
+            
+            -- Pequeño impulso para alejarse
+            if myChar:FindFirstChild("Humanoid") then
+                myChar.Humanoid:MoveTo(myHrp.Position + direction * 25)
             end
         end
     end
