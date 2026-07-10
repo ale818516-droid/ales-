@@ -454,5 +454,111 @@ KillSection:Button({
     end
 })
 
+-- ==========================================================
+-- SHOW TOP TIMER (Sin 1:59 ni residuos al terminar partida)
+-- ==========================================================
+
+local TimerEnabled = false
+local TimerGui = nil
+
+local function CreateTopTimer()
+    if TimerGui then return end
+
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+    TimerGui = Instance.new("ScreenGui")
+    TimerGui.Name = "AutoTimerGui"
+    TimerGui.ResetOnSpawn = false
+    TimerGui.Enabled = false
+    TimerGui.Parent = playerGui
+
+    local label = Instance.new("TextLabel")
+    label.Name = "TimerLabel"
+    label.Parent = TimerGui
+    label.AnchorPoint = Vector2.new(0.5, 0)
+    label.Position = UDim2.new(0.5, 0, 0.08, 0)
+    label.Size = UDim2.new(0, 160, 0, 50)
+    label.BackgroundTransparency = 1
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBlack
+    label.Text = ""
+    label.TextColor3 = Color3.fromRGB(180, 120, 255)
+    label.TextStrokeTransparency = 0.3
+    label.TextStrokeColor3 = Color3.fromRGB(40, 0, 70)
+    label.Visible = false
+end
+
+local function UpdateTimer()
+    if not TimerGui or not TimerGui.Enabled then return end
+
+    local label = TimerGui:FindFirstChild("TimerLabel")
+    if not label then return end
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:GetAttribute("Time") ~= nil then
+            local timeLeft = obj:GetAttribute("Time")
+            local minutes = math.floor(timeLeft / 60)
+            local seconds = math.floor(timeLeft % 60)
+            label.Text = string.format("%d:%02d", minutes, seconds)
+            label.Visible = true
+            if timeLeft < 60 then
+                label.TextColor3 = Color3.fromRGB(255, 80, 80)
+            end
+            return
+        end
+    end
+
+    label.Visible = false
+    label.Text = ""
+end
+
+KillSection:Toggle({
+    Title = "Show Top Timer",
+    Default = false,
+    Callback = function(state)
+        TimerEnabled = state
+        if state then
+            CreateTopTimer()
+            WindUI:Notify({Title = "Timer", Content = "Activado", Duration = 2})
+        else
+            if TimerGui then
+                TimerGui:Destroy()
+                TimerGui = nil
+            end
+        end
+    end
+})
+
+-- Control de ronda
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RoundStart = ReplicatedStorage:FindFirstChild("Remotes", true) and ReplicatedStorage.Remotes:FindFirstChild("Gameplay", true) and ReplicatedStorage.Remotes.Gameplay:FindFirstChild("RoundStart")
+local RoundEnd = ReplicatedStorage:FindFirstChild("Remotes", true) and ReplicatedStorage.Remotes:FindFirstChild("Gameplay", true) and ReplicatedStorage.Remotes.Gameplay:FindFirstChild("RoundEndFade")
+
+if RoundStart then
+    RoundStart.OnClientEvent:Connect(function()
+        if TimerEnabled and TimerGui then
+            TimerGui.Enabled = true
+            task.spawn(function()
+                while TimerGui and TimerGui.Enabled do
+                    UpdateTimer()
+                    task.wait(0.15)
+                end
+            end)
+        end
+    end)
+end
+
+if RoundEnd then
+    RoundEnd.OnClientEvent:Connect(function()
+        if TimerGui then
+            TimerGui.Enabled = false
+            local label = TimerGui:FindFirstChild("TimerLabel")
+            if label then
+                label.Visible = false
+                label.Text = ""
+            end
+        end
+    end)
+end
 print("✅ 3 Botones de Kill agregados correctamente (Murder Tools)")
 print("✅ Nexora Framework migrado a WindUI correctamente.")
