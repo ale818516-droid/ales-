@@ -371,6 +371,94 @@ RoleSection:Toggle({
         end
     end
 })
+
+-- ==========================================================
+-- HITBOX (EXACTO del archivo original)
+-- ==========================================================
+
+local HitboxSettings = {
+    ["Hitbox"] = {
+        ["Enabled"] = false,
+        ["Size"] = 5,
+        ["Color"] = Color3.new(1, 0, 0),
+        ["Adornments"] = {},
+        ["Connection"] = nil
+    }
+}
+
+local function UpdateHitboxes()
+    if HitboxSettings.Hitbox.Enabled then
+        for _, Player in pairs(Players:GetPlayers()) do
+            if Player ~= LocalPlayer then
+                local Character = Player.Character
+                local Adornment = HitboxSettings.Hitbox.Adornments[Player]
+                if Character and HitboxSettings.Hitbox.Enabled then
+                    local RootPart = Character:FindFirstChild("HumanoidRootPart")
+                    if RootPart then
+                        if Adornment then
+                            Adornment.Size = Vector3.new(HitboxSettings.Hitbox.Size, HitboxSettings.Hitbox.Size, HitboxSettings.Hitbox.Size)
+                            Adornment.Color3 = HitboxSettings.Hitbox.Color
+                        else
+                            local NewAdornment = Instance.new("BoxHandleAdornment")
+                            NewAdornment.Adornee = RootPart
+                            NewAdornment.Size = Vector3.new(HitboxSettings.Hitbox.Size, HitboxSettings.Hitbox.Size, HitboxSettings.Hitbox.Size)
+                            NewAdornment.Color3 = HitboxSettings.Hitbox.Color
+                            NewAdornment.Transparency = 0.4
+                            NewAdornment.ZIndex = 10
+                            NewAdornment.Parent = RootPart
+                            HitboxSettings.Hitbox.Adornments[Player] = NewAdornment
+                        end
+                    end
+                end
+            end
+        end
+    else
+        for Player, Adornment in pairs(HitboxSettings.Hitbox.Adornments) do
+            if Adornment and Adornment.Parent then
+                Adornment:Destroy()
+            end
+        end
+        HitboxSettings.Hitbox.Adornments = {}
+    end
+end
+
+RoleSection:Toggle({
+    ["Title"] = "Hitboxes",
+    ["Value"] = false,
+    ["Callback"] = function(State)
+        HitboxSettings.Hitbox.Enabled = State
+        if State then
+            if not HitboxSettings.Hitbox.Connection then
+                HitboxSettings.Hitbox.Connection = RunService.Heartbeat:Connect(UpdateHitboxes)
+            end
+        else
+            if HitboxSettings.Hitbox.Connection then
+                HitboxSettings.Hitbox.Connection:Disconnect()
+                HitboxSettings.Hitbox.Connection = nil
+            end
+            for _, Adornment in pairs(HitboxSettings.Hitbox.Adornments) do
+                if Adornment and Adornment.Parent then
+                    Adornment:Destroy()
+                end
+            end
+            HitboxSettings.Hitbox.Adornments = {}
+        end
+    end
+})
+
+RoleSection:Slider({
+    ["Title"] = "Hitbox Size",
+    ["step"] = 0.5,
+    ["Value"] = {
+        ["Min"] = 1,
+        ["Max"] = 20,
+        ["Default"] = 5
+    },
+    ["Callback"] = function(Value)
+        HitboxSettings.Hitbox.Size = Value
+    end
+})
+
 -- ==========================================================
 -- KILL BUTTONS (Murderer Tools) - Misma lógica del script grande
 -- ==========================================================
