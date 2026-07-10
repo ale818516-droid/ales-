@@ -229,5 +229,126 @@ task.spawn(function()
         end
     end
 end)
+-- ==========================================
+-- ALEXX HUB - ROLE ESP SYSTEM
+-- ==========================================
+
+_G.ESP_Enabled = false
+_G.LatestPlayerData = {}
+_G.IsRefiningMode = false
+
+local VisualsTab = Window:Tab({Title = "Visuals", Icon = "eye"})
+local RoleSection = VisualsTab:Section({Title = "Role ESP System"})
+
+-- Función para limpiar etiquetas y highlights
+local function cleanESP(char)
+    if char:FindFirstChild("RoleHighlight") then char.RoleHighlight:Destroy() end
+    if char:FindFirstChild("Head") and char.Head:FindFirstChild("RoleTag") then char.Head.RoleTag:Destroy() end
+end
+
+-- Función principal de marcado
+local function applyESP(player, role)
+    local char = player.Character
+    if not char then return end
+    
+    local color = (role == "Sheriff" and Color3.fromRGB(0, 170, 255)) or 
+                  (role == "Murderer" and Color3.fromRGB(255, 85, 85)) or 
+                  Color3.fromRGB(85, 255, 127)
+    
+    -- Aplicar Highlight
+    local existing = char:FindFirstChild("RoleHighlight")
+    if not existing then
+        local h = Instance.new("Highlight")
+        h.Name = "RoleHighlight"
+        h.Adornee = char
+        h.Parent = char
+        h.FillTransparency = 1
+        h.OutlineTransparency = 0
+        h.OutlineColor = color
+        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    elseif existing.OutlineColor ~= color then
+        existing.OutlineColor = color
+    end
+
+    -- Aplicar Etiqueta [ASESINO]
+    local head = char:FindFirstChild("Head")
+    if head then
+        if role == "Murderer" then
+            if not head:FindFirstChild("RoleTag") then
+                local bill = Instance.new("BillboardGui")
+                bill.Name = "RoleTag"
+                bill.Adornee = head
+                bill.Size = UDim2.new(0, 200, 0, 50)
+                bill.StudsOffset = Vector3.new(0, 3, 0)
+                bill.AlwaysOnTop = true
+                bill.Parent = head
+                local label = Instance.new("TextLabel")
+                label.Parent = bill
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.Text = player.Name .. "\n[ASESINO]"
+                label.TextColor3 = color
+                label.TextStrokeTransparency = 0
+                label.Font = Enum.Font.SourceSansBold
+                label.TextSize = 25
+            end
+        else
+            if head:FindFirstChild("RoleTag") then head.RoleTag:Destroy() end
+        end
+    end
+end
+
+-- 1. EVENTO INICIAL (Siempre activo para recibir data)
+game:GetService("ReplicatedStorage").Remotes.Gameplay.PlayerDataChanged.OnClientEvent:Connect(function(data)
+    _G.LatestPlayerData = data
+end)
+
+-- 2. TEMPORIZADOR (10 segundos para modo objetos)
+task.spawn(function()
+    task.wait(10)
+    _G.IsRefiningMode = true
+end)
+
+-- 3. BUCLE PRINCIPAL (Híbrido)
+task.spawn(function()
+    while task.wait(0.5) do
+        if _G.ESP_Enabled then
+            for _, player in pairs(game.Players:GetPlayers()) do
+                if player.Character then
+                    local data = _G.LatestPlayerData and _G.LatestPlayerData[player.Name]
+                    local role = data and data.Role or "Innocent"
+                    
+                    -- A los 10 segundos, forzamos corrección por inventario
+                    if _G.IsRefiningMode then
+                        if player.Character:FindFirstChild("Gun") or player.Backpack:FindFirstChild("Gun") then
+                            role = "Sheriff"
+                        elseif player.Character:FindFirstChild("Knife") or player.Backpack:FindFirstChild("Knife") then
+                            role = "Murderer"
+                        end
+                    end
+                    
+                    applyESP(player, role)
+                else
+                    -- Limpiar si el personaje desaparece
+                    if player.Character then cleanESP(player.Character) end
+                end
+            end
+        end
+    end
+end)
+
+-- 4. TOGGLE
+RoleSection:Toggle({
+    Title = "Activar Role ESP",
+    Default = false,
+    Callback = function(Value)
+        _G.ESP_Enabled = Value
+        if not Value then
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p.Character then cleanESP(p.Character) end
+            end
+        end
+    end
+})
 
 print("✅ Nexora Framework migrado a WindUI correctamente.")
