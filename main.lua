@@ -153,17 +153,18 @@ task.spawn(function()
         return closest_coin, min_distance
     end
 
-    -- Evento de bolsa llena (Reinicia personaje como en el original)
+    -- Evento de bolsa llena (SOLO PAUSA - NO ELIMINA PERSONAJE)
     CoinCollected.OnClientEvent:Connect(function(coin_type, current, max)
         if coin_type == farmCoinType and current == max then
             bag_full = true
-            task.spawn(function()
-                if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-                    LP.Character:BreakJoints()
-                end
-            end)
-            repeat task.wait() until not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart")
-            bag_full = false
+            WindUI:Notify({
+                Title = "Bolsa Llena",
+                Content = "Esperando a que se vacíe...",
+                Duration = 4
+            })
+            
+            -- Espera natural sin morir
+            repeat task.wait(1) until not bag_full
         end
     end)
 
@@ -182,7 +183,7 @@ task.spawn(function()
                     else
                         local tw = TweenService:Create(hrp, TweenInfo.new(dist / math.max(1, currentSpeed), Enum.EasingStyle.Linear), {CFrame = coin.CFrame})
                         tw:Play()
-                        repeat task.wait() until not coin:FindFirstChild("TouchInterest") or not _G.autofarmEnabled or not farming
+                        repeat task.wait() until not coin:FindFirstChild("TouchInterest") or not _G.autofarmEnabled or not farming or bag_full
                         tw:Cancel()
                     end
                 end
