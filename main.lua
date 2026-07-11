@@ -454,7 +454,96 @@ RoleSection:Slider({
         HitboxSettings.Hitbox.Size = Value
     end
 })
+-- ==========================================================
+-- SPECTATE SYSTEM (MISMA LÓGICA EXACTA DEL ARCHIVO ORIGINAL)
+-- ==========================================================
 
+local SelectedPlayer = nil
+local DeathNotifyConnection = nil
+local OriginalCameraSubject = workspace.CurrentCamera.CameraSubject
+
+local function SendPlayerNotification(Title, Text)
+    SendNexoraNotification(Title or "Spectate", Text or "", 5)
+end
+
+local function FindMurdererCharacter()
+    for _, Player in pairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer and Player.Character then
+            if Player.Backpack:FindFirstChild("Knife") or Player.Character:FindFirstChild("Knife") then
+                return Player.Character
+            end
+        end
+    end
+    return nil
+end
+
+local function FindSheriffCharacter()
+    for _, Player in pairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer and Player.Character then
+            if Player.Backpack:FindFirstChild("Gun") or Player.Character:FindFirstChild("Gun") then
+                return Player.Character
+            end
+        end
+    end
+    return nil
+end
+
+-- Sección Spectate dentro de RoleSection
+RoleSection:Section({Title = "Spectate"})
+
+RoleSection:Button({
+    ["Title"] = "Spectate Murderer",
+    ["Callback"] = function()
+        local MurdererCharacter = FindMurdererCharacter()
+        if MurdererCharacter and MurdererCharacter:FindFirstChild("Humanoid") then
+            workspace.CurrentCamera.CameraSubject = MurdererCharacter:FindFirstChild("Humanoid")
+            SendPlayerNotification("Spectate", "Mirando al Murderer")
+        else
+            SendPlayerNotification("Spectate", "Murderer no encontrado")
+        end
+    end
+})
+
+RoleSection:Button({
+    ["Title"] = "Spectate Sheriff",
+    ["Callback"] = function()
+        local SheriffCharacter = FindSheriffCharacter()
+        if SheriffCharacter and SheriffCharacter:FindFirstChild("Humanoid") then
+            workspace.CurrentCamera.CameraSubject = SheriffCharacter:FindFirstChild("Humanoid")
+            SendPlayerNotification("Spectate", "Mirando al Sheriff")
+        else
+            SendPlayerNotification("Spectate", "Sheriff no encontrado")
+        end
+    end
+})
+
+RoleSection:Button({
+    ["Title"] = "Spectate Random",
+    ["Callback"] = function()
+        local AllPlayers = Players:GetPlayers()
+        if #AllPlayers <= 1 then
+            SendPlayerNotification("Spectate", "Necesitas al menos 2 jugadores")
+            return
+        end
+        local RandomPlayer
+        repeat
+            RandomPlayer = AllPlayers[math.random(1, #AllPlayers)]
+        until RandomPlayer ~= LocalPlayer and RandomPlayer.Character and RandomPlayer.Character:FindFirstChild("Humanoid")
+        
+        workspace.CurrentCamera.CameraSubject = RandomPlayer.Character:FindFirstChild("Humanoid")
+        SendPlayerNotification("Spectate", "Mirando a: " .. RandomPlayer.Name)
+    end
+})
+
+RoleSection:Button({
+    ["Title"] = "Stop Spectating",
+    ["Callback"] = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            workspace.CurrentCamera.CameraSubject = LocalPlayer.Character:FindFirstChild("Humanoid")
+            SendPlayerNotification("Spectate", "Espectador detenido")
+        end
+    end
+})
 -- ==========================================================
 -- KILL BUTTONS (Murderer Tools) - Misma lógica del script grande
 -- ==========================================================
