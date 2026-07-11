@@ -743,6 +743,53 @@ KillSection:Toggle({
     end
 })
 -- ==========================================================
+-- TOUCH FLING (MISMA LÓGICA EXACTA DEL ARCHIVO ORIGINAL)
+-- ==========================================================
+
+local TouchFlingEnabled = false
+
+local function TouchFlingLoop()
+    local Character = nil
+    local RootPart = nil
+    local ToggleValue = 0.1
+    while TouchFlingEnabled do
+        RunService.Heartbeat:Wait()
+        while TouchFlingEnabled and not (Character and (Character.Parent and (RootPart and RootPart.Parent))) do
+            RunService.Heartbeat:Wait()
+            Character = LocalPlayer.Character
+            RootPart = Character:FindFirstChild("HumanoidRootPart") or (Character:FindFirstChild("Torso") or Character:FindFirstChild("UpperTorso"))
+        end
+        if TouchFlingEnabled then
+            local CurrentVelocity = RootPart.Velocity
+            RootPart.Velocity = CurrentVelocity * 10000 + Vector3.new(0, 10000, 0)
+            RunService.RenderStepped:Wait()
+            if Character and (Character.Parent and (RootPart and RootPart.Parent)) then
+                RootPart.Velocity = CurrentVelocity
+            end
+            RunService.Stepped:Wait()
+            if Character and (Character.Parent and (RootPart and RootPart.Parent)) then
+                RootPart.Velocity = CurrentVelocity + Vector3.new(0, ToggleValue, 0)
+                ToggleValue = ToggleValue * -1
+            end
+        end
+    end
+end
+
+-- Toggle en tu sección Kill Options
+KillSection:Toggle({
+    ["Title"] = "Touch Fling",
+    ["Value"] = false,
+    ["Callback"] = function(state)
+        TouchFlingEnabled = state
+        if state then
+            coroutine.wrap(TouchFlingLoop)()
+            SendNexoraNotification("Touch Fling", "Activado", 3, "sword")
+        else
+            SendNexoraNotification("Touch Fling", "Desactivado", 3, "x")
+        end
+    end
+})
+-- ==========================================================
 -- CONTADOR DE RONDA EN PANTALLA (Auto + Preciso)
 -- ==========================================================
 
