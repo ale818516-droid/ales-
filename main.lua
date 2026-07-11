@@ -463,99 +463,74 @@ local MurderTab = Window:Tab({Title = "Murder Tools", Icon = "sword"})
 
 local KillSection = MurderTab:Section({Title = "Kill Options (Hold Knife)"})
 
-local function KillRole(TargetRole)
-    local character = LocalPlayer.Character
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    if not character or not backpack then 
-        WindUI:Notify({Title = "Error", Content = "No se encontró personaje", Duration = 2})
-        return 
-    end
+-- ==========================================================
+-- ULTRA KILL AURA (Misma lógica exacta - en Murder Tools)
+-- ==========================================================
 
-    local knife = character:FindFirstChild("Knife") or backpack:FindFirstChild("Knife")
-    if not knife then
-        WindUI:Notify({Title = "Kill " .. TargetRole, Content = "Necesitas el Knife", Duration = 3})
-        return
-    end
+_G.UltraKillAura = false
 
-    local myRoot = character:FindFirstChild("HumanoidRootPart")
-    local humanoid = character:FindFirstChild("Humanoid")
-    if not (myRoot and humanoid) then return end
-
-    -- Equip Knife
-    if knife.Parent == backpack then
-        humanoid:EquipTool(knife)
+task.spawn(function()
+    while true do
+        if _G.UltraKillAura then
+            local myChar = LocalPlayer.Character
+            local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            local humanoid = myChar and myChar:FindFirstChild("Humanoid")
+            
+            if myRoot and humanoid then
+                local knife = myChar:FindFirstChild("Knife") or LocalPlayer.Backpack:FindFirstChild("Knife")
+                
+                if knife then
+                    -- 1. ATRAER Y HACER INTANGIBLES
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                            local targetChar = player.Character
+                            local targetRoot = targetChar.HumanoidRootPart
+                            local targetHumanoid = targetChar:FindFirstChild("Humanoid")
+                            
+                            if targetHumanoid and targetHumanoid.Health > 0 then
+                                -- Intangibles
+                                for _, part in pairs(targetChar:GetDescendants()) do
+                                    if part:IsA("BasePart") then part.CanCollide = false end
+                                end
+                                -- Traer al frente
+                                targetRoot.CFrame = myRoot.CFrame * CFrame.new(0, 0, -2)
+                            end
+                        end
+                    end
+                    
+                    -- 2. EJECUTAR ATAQUE MASIVO
+                    if knife.Parent ~= myChar then
+                        humanoid:EquipTool(knife)
+                    end
+                    
+                    task.wait(0.05)
+                    
+                    local stabEvent = knife:FindFirstChild("Events") and knife.Events:FindFirstChild("KnifeStabbed")
+                    if stabEvent then
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                                local targetRoot = player.Character.HumanoidRootPart
+                                stabEvent:FireServer(targetRoot)
+                            end
+                        end
+                    end
+                    
+                    -- 3. FINALIZAR
+                    knife.Parent = LocalPlayer.Backpack
+                end
+            end
+        end
         task.wait(0.1)
     end
+end)
 
-    local killed = 0
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer or not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then 
-            continue 
-        end
-
-        local hasKnife = plr.Backpack:FindFirstChild("Knife") or plr.Character:FindFirstChild("Knife")
-        local hasGun   = plr.Backpack:FindFirstChild("Gun") or plr.Character:FindFirstChild("Gun")
-
-        local shouldKill = false
-        if TargetRole == "All" then
-            shouldKill = true
-        elseif TargetRole == "Sheriff" and hasGun then
-            shouldKill = true
-        elseif TargetRole == "Innocents" and not hasKnife and not hasGun then
-            shouldKill = true
-        end
-
-        if shouldKill then
-            local enemyRoot = plr.Character.HumanoidRootPart
-            enemyRoot.Anchored = true
-            enemyRoot.CFrame = myRoot.CFrame * CFrame.new(0, 0, -2.5)
-            killed += 1
-        end
-    end
-
-    -- Stab
-    local stab = knife:FindFirstChild("Stab")
-    if stab then stab:FireServer("Slash") end
-
-    task.wait(0.15)
-
-    -- Unanchor
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            plr.Character.HumanoidRootPart.Anchored = false
-        end
-    end
-
-    if knife.Parent == character then knife.Parent = backpack end
-
-    WindUI:Notify({
-        Title = "Kill " .. TargetRole,
-        Content = "Eliminados: " .. killed,
-        Duration = 3
-    })
-end
-
--- ==================== LOS 3 BOTONES ====================
-
-KillSection:Button({
-    Title = "Kill All (hold knife)",
-    Callback = function()
-        KillRole("All")
-    end
-})
-
-KillSection:Button({
-    Title = "Kill Sheriff (hold knife)",
-    Callback = function()
-        KillRole("Sheriff")
-    end
-})
-
-KillSection:Button({
-    Title = "Kill Innocents (hold knife)",
-    Callback = function()
-        KillRole("Innocents")
+-- Toggle en tu sección Kill Options
+KillSection:Toggle({
+    ["Title"] = "Ultra Kill Aura (Instant Bring)",
+    ["Value"] = false,
+    ["Callback"] = function(state)
+        _G.UltraKillAura = state
+        SendNexoraNotification("Ultra Kill Aura", state and "Activado" or "Desactivado", 3, state and "sword" or "x")
     end
 })
 
