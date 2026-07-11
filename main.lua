@@ -564,6 +564,87 @@ KillSection:Button({
 })
 
 -- ==========================================================
+-- AIMBOT SOLO PARA ASESINO (con Toggle en Murder Tools)
+-- ==========================================================
+
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+local CamlockState = false
+local Prediction = 0.1768521
+local Locked = false
+getgenv().Key = "q"
+
+-- Solo busca al Asesino (misma lógica que me mandaste)
+local function FindNearestMurderer()
+    local ClosestDistance, ClosestPlayer = math.huge, nil
+    local CenterPosition = Vector2.new(
+        game:GetService("GuiService"):GetScreenResolution().X / 2,
+        game:GetService("GuiService"):GetScreenResolution().Y / 2
+    )
+
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer then
+            local Character = Player.Character
+            if Character and Character:FindFirstChild("HumanoidRootPart") and Character.Humanoid.Health > 0 then
+                local hasKnife = Player.Backpack:FindFirstChild("Knife") or Character:FindFirstChild("Knife")
+                if hasKnife then
+                    local Position, IsVisibleOnViewport = workspace.CurrentCamera:WorldToViewportPoint(Character.HumanoidRootPart.Position)
+                    if IsVisibleOnViewport then
+                        local Distance = (CenterPosition - Vector2.new(Position.X, Position.Y)).Magnitude
+                        if Distance < ClosestDistance then
+                            ClosestPlayer = Character.HumanoidRootPart
+                            ClosestDistance = Distance
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return ClosestPlayer
+end
+
+local enemy = nil
+
+RunService.Heartbeat:Connect(function()
+    if CamlockState == true and enemy then
+        local camera = workspace.CurrentCamera
+        camera.CFrame = CFrame.new(camera.CFrame.p, enemy.Position + enemy.Velocity * Prediction)
+    end
+end)
+
+Mouse.KeyDown:Connect(function(k)
+    if k == getgenv().Key then
+        Locked = not Locked
+        if Locked then
+            enemy = FindNearestMurderer()
+            CamlockState = true
+        else
+            enemy = nil
+            CamlockState = false
+        end
+    end
+end)
+
+-- Toggle en la pestaña Murder Tools
+KillSection:Toggle({
+    ["Title"] = "Aimbot Solo Asesino (Q)",
+    ["Value"] = false,
+    ["Callback"] = function(State)
+        CamlockState = State
+        if State then
+            enemy = FindNearestMurderer()
+            Locked = true
+            SendNexoraNotification("ACE Aimbot", "Activado (Solo Asesino)", 3, "target")
+        else
+            enemy = nil
+            Locked = false
+            SendNexoraNotification("ACE Aimbot", "Desactivado", 3, "x")
+        end
+    end
+})
+-- ==========================================================
 -- CONTADOR DE RONDA EN PANTALLA (Auto + Preciso)
 -- ==========================================================
 
