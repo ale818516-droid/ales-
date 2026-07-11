@@ -72,28 +72,20 @@ SecGun:Toggle({
     end
 })
 -- ==========================================================
--- ESTRUCTURA FARM (Lógica e Interfaz Original)
+-- ESTRUCTURA FARM (Arreglado: bolsa llena se resetea por ronda)
 -- ==========================================================
 local FarmSection = FarmTab:Section({ Title = "Configuración de Farm" })
 
--- Variables de estado (Basadas en el original)
 _G.autofarmEnabled = false
 local currentSpeed = 20
 local farmCoinType = "Egg"
 local farming = true
 local bag_full = false
-_G.AntiMurderer = false
-local MurdererTarget = nil
 
--- Servicios necesarios
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
-
--- ==========================================================
--- ESTRUCTURA FARM (CONFIGURACIÓN CORREGIDA PARA AZUREHUB)
--- ==========================================================
 
 -- Toggle
 FarmSection:Toggle({
@@ -115,25 +107,21 @@ FarmSection:Slider({
 
 FarmSection:Dropdown({
     Title = "Tipo de Moneda",
-    Values = {
-        "Egg",
-        "Coin"
-    },
+    Values = {"Egg", "Coin"},
     Value = "Egg",
     Callback = function(v)
-        print("Seleccionaste:", v)
         farmCoinType = v
     end
 })
 
-
--- Lógica de recolección (IDÉNTICA al archivo original)
+-- Lógica de recolección
 task.spawn(function()
     local CoinCollected = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Gameplay"):WaitForChild("CoinCollected")
     local RoundStart = ReplicatedStorage.Remotes.Gameplay:WaitForChild("RoundStart")
     local RoundEnd = ReplicatedStorage.Remotes.Gameplay:WaitForChild("RoundEndFade")
 
-    -- Detección de moneda cercana
+    local currentTween = nil
+
     local function get_nearest_coin(hrp)
         local closest_coin, min_distance = nil, math.huge
         for _, model in pairs(workspace:GetChildren()) do
@@ -153,7 +141,7 @@ task.spawn(function()
         return closest_coin, min_distance
     end
 
-    -- Evento de bolsa llena (SOLO PAUSA - NO ELIMINA PERSONAJE)
+    -- Bolsa llena
     CoinCollected.OnClientEvent:Connect(function(coin_type, current, max)
         if coin_type == farmCoinType and current == max then
             bag_full = true
@@ -162,36 +150,44 @@ task.spawn(function()
                 Content = "Esperando a que se vacíe...",
                 Duration = 4
             })
-            
-            -- Espera natural sin morir
             repeat task.wait(1) until not bag_full
         end
     end)
 
-    RoundStart.OnClientEvent:Connect(function() farming = true end)
-    RoundEnd.OnClientEvent:Connect(function() farming = false end)
+    -- Reset al empezar nueva ronda
+    RoundStart.OnClientEvent:Connect(function()
+        farming = true
+        bag_full = false  -- ←←← ESTO ERA EL PROBLEMA
+    end)
 
-    -- Bucle principal de Farm
-    while task.wait() do
+    RoundEnd.OnClientEvent:Connect(function()
+        farming = false
+    end)
+
+    -- Bucle principal
+    while true do
+        task.wait(0.03)
+
         if _G.autofarmEnabled and farming and not bag_full then
             local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local coin, dist = get_nearest_coin(hrp)
                 if coin then
+                    if currentTween then currentTween:Cancel() end
+
                     if dist > 150 then
                         hrp.CFrame = coin.CFrame
                     else
-                        local tw = TweenService:Create(hrp, TweenInfo.new(dist / math.max(1, currentSpeed), Enum.EasingStyle.Linear), {CFrame = coin.CFrame})
-                        tw:Play()
+                        currentTween = TweenService:Create(hrp, TweenInfo.new(dist / math.max(1, currentSpeed), Enum.EasingStyle.Linear), {CFrame = coin.CFrame})
+                        currentTween:Play()
                         repeat task.wait() until not coin:FindFirstChild("TouchInterest") or not _G.autofarmEnabled or not farming or bag_full
-                        tw:Cancel()
+                        if currentTween then currentTween:Cancel() end
                     end
                 end
             end
         end
     end
 end)
-
 -- Toggle para Anti-Murderer
 FarmSection:Toggle({
     Title = "Anti-Murderer [Evasion]",
