@@ -190,40 +190,42 @@ task.spawn(function()
 end)
 -- Toggle para Anti-Murderer
 FarmSection:Toggle({
-    Title = "Anti-Murderer",
+    Title = "Anti-Murderer [No ir hacia él]",
     Default = false,
     Callback = function(state)
         _G.AntiMurderer = state
         WindUI:Notify({
             Title = "Anti-Murderer",
-            Content = state and "Activado (Modo Seguro)" or "Desactivado",
-            Duration = 2
+            Content = state and "Activado - No se acerca" or "Desactivado",
+            Duration = 3
         })
     end
 })
 
--- Lógica Anti-Murderer Mejorada
+-- Lógica simple y fuerte
 task.spawn(function()
-    while task.wait(0.15) do
+    while task.wait(0.1) do
         if not _G.AntiMurderer then continue end
 
         local myChar = LP.Character
         local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
-        if not myHrp then continue end
+        local humanoid = myChar and myChar:FindFirstChild("Humanoid")
+        if not myHrp or not humanoid then continue end
 
         local closestMurderer = nil
         local closestDist = math.huge
 
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LP and player.Character then
-                local role = player:GetAttribute("Role") or "Innocent"
-                
-                -- Mejor detección de Murderer
-                if role == "Murderer" or player.Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife") then
+                local isMurderer = player:GetAttribute("Role") == "Murderer" 
+                    or player.Backpack:FindFirstChild("Knife") 
+                    or (player.Character and player.Character:FindFirstChild("Knife"))
+
+                if isMurderer then
                     local mHrp = player.Character:FindFirstChild("HumanoidRootPart")
                     if mHrp then
                         local dist = (myHrp.Position - mHrp.Position).Magnitude
-                        if dist < closestDist then
+                        if dist < closestDist and dist < 40 then
                             closestDist = dist
                             closestMurderer = mHrp
                         end
@@ -232,16 +234,16 @@ task.spawn(function()
             end
         end
 
-        if closestMurderer and closestDist < 35 then  -- Radio de detección
-            local direction = (myHrp.Position - closestMurderer.Position).Unit
-            local newCFrame = myHrp.CFrame + (direction * 12)  -- Menos agresivo
-            
-            -- Movimiento suave
-            myHrp.CFrame = CFrame.new(newCFrame.Position, closestMurderer.Position)
-            
-            -- Pequeño impulso para alejarse
-            if myChar:FindFirstChild("Humanoid") then
-                myChar.Humanoid:MoveTo(myHrp.Position + direction * 25)
+        if closestMurderer then
+            local directionToMurder = (closestMurderer.Position - myHrp.Position).Unit
+            local currentMove = humanoid.MoveDirection
+
+            -- Si intentas moverte hacia el asesino, lo bloqueamos
+            if currentMove.Magnitude > 0.2 then
+                if currentMove:Dot(directionToMurder) > 0.4 then
+                    -- Cancela el movimiento hacia él
+                    humanoid:MoveTo(myHrp.Position + currentMove * 8)
+                end
             end
         end
     end
