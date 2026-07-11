@@ -533,7 +533,61 @@ KillSection:Toggle({
         SendNexoraNotification("Ultra Kill Aura", state and "Activado" or "Desactivado", 3, state and "sword" or "x")
     end
 })
+-- ==========================================================
+-- AUTO KILL SHERIFF (Misma lógica exacta)
+-- ==========================================================
 
+_G.SheriffKillAura = false
+
+task.spawn(function()
+    while true do
+        if _G.SheriffKillAura then
+            local myChar = LocalPlayer.Character
+            local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            local knife = myChar and (myChar:FindFirstChild("Knife") or LocalPlayer.Backpack:FindFirstChild("Knife"))
+            
+            if myRoot and knife then
+                -- Buscamos al Sheriff
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        local hasGun = player.Backpack:FindFirstChild("Gun") or player.Character:FindFirstChild("Gun")
+                        if hasGun then
+                            local targetRoot = player.Character.HumanoidRootPart
+                            local targetHumanoid = player.Character:FindFirstChild("Humanoid")
+                            
+                            if targetHumanoid and targetHumanoid.Health > 0 then
+                                -- Atraer al Sheriff
+                                targetRoot.CFrame = myRoot.CFrame * CFrame.new(0, 0, -3)
+                                
+                                -- Equipar cuchillo
+                                if knife.Parent ~= myChar then
+                                    myChar:FindFirstChild("Humanoid"):EquipTool(knife)
+                                end
+                                
+                                -- Ataque
+                                local stabEvent = knife:FindFirstChild("Events") and knife.Events:FindFirstChild("KnifeStabbed")
+                                if stabEvent then
+                                    stabEvent:FireServer(targetRoot)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        task.wait(0.3)
+    end
+end)
+
+-- Toggle en tu sección Kill Options
+KillSection:Toggle({
+    ["Title"] = "Auto Kill Sheriff",
+    ["Value"] = false,
+    ["Callback"] = function(state)
+        _G.SheriffKillAura = state
+        SendNexoraNotification("Auto Kill Sheriff", state and "Activado" or "Desactivado", 3, state and "sword" or "x")
+    end
+})
 -- ==========================================================
 -- COMBO AIMBOT + SILENT AUTO SHOOT (Solo Asesino)
 -- ==========================================================
