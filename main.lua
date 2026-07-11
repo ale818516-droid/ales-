@@ -686,84 +686,60 @@ KillSection:Toggle({
     end
 })
 -- ==========================================================
--- AIMBOT SOLO PARA ASESINO (con Toggle en Murder Tools)
+-- AIMBOT MEJORADO - Solo Asesino (Seguimiento en Tiempo Real)
 -- ==========================================================
 
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
 
-local CamlockState = false
-local Prediction = 0.1768521
-local Locked = false
-getgenv().Key = "q"
+local AimbotEnabled = false
+local Prediction = 0.165  -- Predicción más precisa
+local Smoothing = 0.12     -- Suavizado para que no sea tan brusco
 
--- Solo busca al Asesino (misma lógica que me mandaste)
-local function FindNearestMurderer()
-    local ClosestDistance, ClosestPlayer = math.huge, nil
-    local CenterPosition = Vector2.new(
-        game:GetService("GuiService"):GetScreenResolution().X / 2,
-        game:GetService("GuiService"):GetScreenResolution().Y / 2
-    )
+local CurrentTarget = nil
 
-    for _, Player in ipairs(Players:GetPlayers()) do
-        if Player ~= LocalPlayer then
-            local Character = Player.Character
-            if Character and Character:FindFirstChild("HumanoidRootPart") and Character.Humanoid.Health > 0 then
-                local hasKnife = Player.Backpack:FindFirstChild("Knife") or Character:FindFirstChild("Knife")
-                if hasKnife then
-                    local Position, IsVisibleOnViewport = workspace.CurrentCamera:WorldToViewportPoint(Character.HumanoidRootPart.Position)
-                    if IsVisibleOnViewport then
-                        local Distance = (CenterPosition - Vector2.new(Position.X, Position.Y)).Magnitude
-                        if Distance < ClosestDistance then
-                            ClosestPlayer = Character.HumanoidRootPart
-                            ClosestDistance = Distance
-                        end
-                    end
+local function GetMurderer()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local hasKnife = player.Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife")
+            if hasKnife then
+                local root = player.Character:FindFirstChild("HumanoidRootPart")
+                if root and player.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
+                    return root
                 end
             end
         end
     end
-    return ClosestPlayer
+    return nil
 end
 
-local enemy = nil
+-- Seguimiento suave en tiempo real
+RunService.RenderStepped:Connect(function()
+    if not AimbotEnabled then return end
 
-RunService.Heartbeat:Connect(function()
-    if CamlockState == true and enemy then
+    CurrentTarget = GetMurderer()
+    
+    if CurrentTarget then
         local camera = workspace.CurrentCamera
-        camera.CFrame = CFrame.new(camera.CFrame.p, enemy.Position + enemy.Velocity * Prediction)
+        local targetPos = CurrentTarget.Position + (CurrentTarget.Velocity * Prediction)
+        
+        -- Suavizado para que sea más natural
+        local currentLook = camera.CFrame.LookVector
+        local desiredLook = (targetPos - camera.CFrame.Position).Unit
+        
+        local newLook = currentLook:Lerp(desiredLook, Smoothing)
+        
+        camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + newLook)
     end
 end)
 
-Mouse.KeyDown:Connect(function(k)
-    if k == getgenv().Key then
-        Locked = not Locked
-        if Locked then
-            enemy = FindNearestMurderer()
-            CamlockState = true
-        else
-            enemy = nil
-            CamlockState = false
-        end
-    end
-end)
-
--- Toggle en la pestaña Murder Tools
+-- Toggle en tu sección Kill Options
 KillSection:Toggle({
-    ["Title"] = "Aimbot Solo Asesino (Q)",
+    ["Title"] = "Aimbot Mejorado (Solo Asesino)",
     ["Value"] = false,
-    ["Callback"] = function(State)
-        CamlockState = State
-        if State then
-            enemy = FindNearestMurderer()
-            Locked = true
-            SendNexoraNotification("ACE Aimbot", "Activado (Solo Asesino)", 3, "target")
-        else
-            enemy = nil
-            Locked = false
-            SendNexoraNotification("ACE Aimbot", "Desactivado", 3, "x")
-        end
+    ["Callback"] = function(state)
+        AimbotEnabled = state
+        SendNexoraNotification("Aimbot Mejorado", state and "Activado - Seguimiento Real" or "Desactivado", 3, state and "target" or "x")
     end
 })
 -- ==========================================================
