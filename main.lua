@@ -11,7 +11,7 @@ local LocalPlayer = Players.LocalPlayer
 
 -- ==================== CONFIGURACIÓN DE UI ====================
 local Window = WindUI:CreateWindow({
-    Title = "MM2 Helper [PRO]",
+    Title = "ALexHub",
     Icon = "rbxassetid://4483345906",
     Author = "Alexx Hub",
     Folder = "MM2_New_Project"
@@ -190,7 +190,7 @@ task.spawn(function()
 end)
 -- Toggle para Anti-Murderer
 FarmSection:Toggle({
-    Title = "Anti-Murderer [Evasion]",
+    Title = "Anti-Murderer",
     Default = false,
     Callback = function(state)
         _G.AntiMurderer = state
@@ -356,7 +356,7 @@ end)
 
 -- 4. TOGGLE
 RoleSection:Toggle({
-    Title = "Activar Role ESP",
+    Title = "Role ESP",
     Default = false,
     Callback = function(Value)
         _G.ESP_Enabled = Value
@@ -526,7 +526,7 @@ end)
 
 -- Toggle en tu sección Kill Options
 KillSection:Toggle({
-    ["Title"] = "Ultra Kill Aura (Instant Bring)",
+    ["Title"] = "Kill Aura (Instant Bring)",
     ["Value"] = false,
     ["Callback"] = function(state)
         _G.UltraKillAura = state
@@ -672,7 +672,7 @@ end
 
 -- Toggle en tu pestaña Murder Tools
 KillSection:Toggle({
-    ["Title"] = "Aimbot + Silent Auto Shoot (Combo)",
+    ["Title"] = "Auto Shoot (Murder)",
     ["Value"] = false,
     ["Callback"] = function(state)
         _G.AimbotComboEnabled = state
@@ -735,7 +735,7 @@ end)
 
 -- Toggle en tu sección Kill Options
 KillSection:Toggle({
-    ["Title"] = "Aimbot Mejorado (Solo Asesino)",
+    ["Title"] = "Aimbot (Murder)",
     ["Value"] = false,
     ["Callback"] = function(state)
         AimbotEnabled = state
@@ -817,7 +817,7 @@ end)
 
 -- Toggle en KillSection
 KillSection:Toggle({
-    ["Title"] = "Anti Fling V2",
+    ["Title"] = "Anti Fling",
     ["Value"] = false,
     ["Callback"] = function(state)
         AntiFlingEnabled = state
