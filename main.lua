@@ -789,6 +789,49 @@ KillSection:Toggle({
         end
     end
 })
+
+-- ==========================================================
+-- ANTI FLING V2 (MISMA LÓGICA EXACTA)
+-- ==========================================================
+
+local AntiFlingEnabled = false
+
+local function setCanCollideOfModelDescendants(model, bval)
+    if not model then return end
+    for _, v in pairs(model:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.CanCollide = bval
+        end
+    end
+end
+
+RunService.Stepped:Connect(function()
+    if AntiFlingEnabled then
+        for _, v in pairs(Players:GetPlayers()) do
+            if v ~= LocalPlayer and v.Character then
+                setCanCollideOfModelDescendants(v.Character, false)
+            end
+        end
+    end
+end)
+
+-- Toggle en KillSection
+KillSection:Toggle({
+    ["Title"] = "Anti Fling V2",
+    ["Value"] = false,
+    ["Callback"] = function(state)
+        AntiFlingEnabled = state
+        SendNexoraNotification("Anti Fling V2", state and "Activado" or "Desactivado", 3, state and "shield" or "x")
+
+        if not AntiFlingEnabled then
+            for _, v in pairs(Players:GetPlayers()) do
+                if v ~= LocalPlayer and v.Character then
+                    setCanCollideOfModelDescendants(v.Character, true)
+                end
+            end
+        end
+    end
+})
 -- ==========================================================
 -- CONTADOR DE RONDA EN PANTALLA (Auto + Preciso)
 -- ==========================================================
