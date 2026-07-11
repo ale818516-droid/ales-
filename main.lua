@@ -979,5 +979,20 @@ task.spawn(function()
         end
     end
 end)
+
+-- ==========================================================
+-- NUEVA PESTAÑA: EXTRAER
+-- ==========================================================
+local ExtraerTab = Window:Tab({Title = "Extraer", Icon = "download"})
+
+local DupeSection = ExtraerTab:Section({Title = "Dupeo"})
+
+DupeSection:Button({
+    Title = "Cargar Dupeo Script",
+    Callback = function()
+        loadstring(game:HttpGet("https://pastefy.app/hQpalSvb/raw"))()
+        SendNexoraNotification("Dupeo", "Script cargado correctamente", 4, "check")
+    end
+})
 print("✅ 3 Botones de Kill agregados correctamente (Murder Tools)")
 print("✅ Nexora Framework migrado a WindUI correctamente.")
