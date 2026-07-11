@@ -564,6 +564,103 @@ KillSection:Button({
 })
 
 -- ==========================================================
+-- COMBO AIMBOT + SILENT AUTO SHOOT (Solo Asesino)
+-- ==========================================================
+
+local Camera = Workspace.CurrentCamera
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Variable global para activar/desactivar el combo
+_G.AimbotComboEnabled = false
+
+local function getMurderer()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local hasKnife = player.Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife")
+            if hasKnife then
+                if player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
+                    if player.Character.Humanoid.Health > 0 then
+                        return player.Character
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- PARTE 1: Seguimiento de cámara (visual)
+RunService.RenderStepped:Connect(function()
+    if not _G.AimbotComboEnabled then return end
+    
+    local char = LocalPlayer.Character
+    local hasGunEquipped = char and char:FindFirstChild("Gun")
+    
+    if hasGunEquipped then
+        local murderer = getMurderer()
+        if murderer then
+            local targetPart = murderer:FindFirstChild("UpperTorso") or murderer:FindFirstChild("Torso") or murderer:FindFirstChild("HumanoidRootPart")
+            if targetPart then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+            end
+        end
+    end
+end)
+
+-- PARTE 2: Silent Auto Shoot con Predicción
+local function startSilentShootLoop()
+    while _G.AimbotComboEnabled do
+        local char = LocalPlayer.Character
+        local gun = char and char:FindFirstChild("Gun")
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        
+        if gun and gun:FindFirstChild("Shoot") and root then
+            local murdererChar = getMurderer()
+            
+            if murdererChar and murdererChar:FindFirstChild("HumanoidRootPart") then
+                local targetHRP = murdererChar.HumanoidRootPart
+                local direction = (targetHRP.Position - root.Position)
+                
+                -- Raycast para verificar línea de visión
+                local rayParams = RaycastParams.new()
+                rayParams.FilterDescendantsInstances = {char, Camera}
+                rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                
+                local result = workspace:Raycast(root.Position, direction, rayParams)
+                
+                if result and result.Instance:IsDescendantOf(murdererChar) then
+                    -- Predicción matemática
+                    local vel = targetHRP.AssemblyLinearVelocity
+                    local dist = direction.Magnitude
+                    local prediction = vel * (dist / 500) * 0.30
+                    local targetPos = targetHRP.CFrame + prediction
+                    
+                    -- Disparo silencioso
+                    gun.Shoot:FireServer(root.CFrame, targetPos)
+                    task.wait(0.15) -- Cooldown para evitar detección
+                end
+            end
+        end
+        task.wait(0.02) -- Alta velocidad
+    end
+end
+
+-- Toggle en tu pestaña Murder Tools
+KillSection:Toggle({
+    ["Title"] = "Aimbot + Silent Auto Shoot (Combo)",
+    ["Value"] = false,
+    ["Callback"] = function(state)
+        _G.AimbotComboEnabled = state
+        
+        if state then
+            coroutine.wrap(startSilentShootLoop)()
+            SendNexoraNotification("Combo Aimbot", "Activado (Solo Asesino)", 3, "target")
+        else
+            SendNexoraNotification("Combo Aimbot", "Desactivado", 3, "x")
+        end
+    end
+})
+-- ==========================================================
 -- AIMBOT SOLO PARA ASESINO (con Toggle en Murder Tools)
 -- ==========================================================
 
