@@ -1165,7 +1165,7 @@ SecSheriff:Toggle({
 MiBoton.Name = BtnName
 MiBoton.Size = UDim2.new(0, 100, 0, 100)
 MiBoton.Position = UDim2.new(0.7, 0, 0.6, 0)
-MiBoton.Image = "rbxassetid://89804924525665"
+MiBoton.Image = "rbxassetid://139650104834071"
 MiBoton.BackgroundTransparency = 1
 MiBoton.ScaleType = Enum.ScaleType.Fit
 MiBoton.Parent = ScreenGui
