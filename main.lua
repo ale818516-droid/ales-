@@ -1014,6 +1014,21 @@ end
 local TimerObject = nil
 local TimerConnection = nil
 
+local function StopRound()
+    isInRound = false
+    RoundToken += 1
+
+    if TimerGui then
+        TimerGui.Enabled = false
+
+        local label = TimerGui:FindFirstChild("TimerLabel")
+        if label then
+            label.Visible = false
+            label.Text = ""
+        end
+    end
+end
+
 local function ConnectTimer(obj)
     if TimerConnection then
         TimerConnection:Disconnect()
@@ -1038,14 +1053,7 @@ local function ConnectTimer(obj)
             TimerGui.Enabled = true
             UpdateRoundTimer(math.floor(time))
         else
-            isInRound = false
-            TimerGui.Enabled = false
-
-            local label = TimerGui:FindFirstChild("TimerLabel")
-            if label then
-                label.Visible = false
-                label.Text = ""
-            end
+            StopRound()
         end
     end
 
@@ -1074,30 +1082,33 @@ workspace.DescendantAdded:Connect(function(obj)
         ConnectTimer(obj)
     end
 end)
-local function StopRound()
-    isInRound = false
-    RoundToken += 1
-    if TimerGui then
-        TimerGui.Enabled = false
-        local label = TimerGui:FindFirstChild("TimerLabel")
-        if label then
-            label.Visible = false
-            label.Text = ""
-        end
-    end
-end
 
-RoundEndFade.OnClientEvent:Connect(StopRound)
-GameOver.OnClientEvent:Connect(StopRound)
+-- Conectar remotes SOLO si existen
+task.spawn(function()
+    local Gameplay = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Gameplay")
+
+    local RoundEndFade = Gameplay:FindFirstChild("RoundEndFade")
+    if RoundEndFade then
+        RoundEndFade.OnClientEvent:Connect(StopRound)
+    end
+
+    local GameOver = Gameplay:FindFirstChild("GameOver")
+    if GameOver then
+        GameOver.OnClientEvent:Connect(StopRound)
+    end
+end)
 
 -- Auto-detección por si el evento falla
 task.spawn(function()
     while task.wait(3) do
         if TimerEnabled and not isInRound then
             for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:GetAttribute("Time") and obj:GetAttribute("Time") > 10 then
+                local time = obj:GetAttribute("Time")
+                if typeof(time) == "number" and time > 10 then
                     isInRound = true
-                    if TimerGui then TimerGui.Enabled = true end
+                    if TimerGui then
+                        TimerGui.Enabled = true
+                    end
                     break
                 end
             end
