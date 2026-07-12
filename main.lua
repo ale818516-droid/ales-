@@ -1124,12 +1124,38 @@ local FlingTab = Window:Tab({Title = "Role Fling", Icon = "wind"})
 local FlingSection = FlingTab:Section({Title = "Fling por Rol"})
 
 -- ==========================================================
--- ROLE FLING (Lógica SkidFling + Roles)
+-- ROLE FLING (Misma lógica SkidFling)
 -- ==========================================================
 
 _G.FlingSheriff = false
 _G.FlingMurderer = false
-_G.FlingInnocent = false
+_G.FlingAllInnocents = false
+
+local function ResetPosition()
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    
+    if root then
+        root.Velocity = Vector3.new()
+        root.RotVelocity = Vector3.new()
+        root.AssemblyLinearVelocity = Vector3.new()
+        
+        -- Reset fuerte
+        if getgenv().OldPos then
+            root.CFrame = getgenv().OldPos
+        end
+    end
+    
+    if hum then
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        workspace.CurrentCamera.CameraSubject = hum
+    end
+    
+    workspace.FallenPartsDestroyHeight = getgenv().FPDH or 0
+end
 
 local function getRole(player)
     if not player or not player.Character then return "Innocent" end
@@ -1183,7 +1209,7 @@ local function SkidFling(TargetPlayer)
                 FPos(BasePart, CFrame.new(0, -1.5, -THumanoid.WalkSpeed), CFrame.Angles(0, 0, 0))
                 task.wait()
             end
-        until tick() - Time > 2 or not (_G.FlingSheriff or _G.FlingMurderer or _G.FlingInnocent)
+        until tick() - Time > 2 or not (_G.FlingSheriff or _G.FlingMurderer or _G.FlingAllInnocents)
     end
     
     local BV = Instance.new("BodyVelocity")
@@ -1202,38 +1228,43 @@ local function SkidFling(TargetPlayer)
     BV:Destroy()
     Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
     workspace.CurrentCamera.CameraSubject = Humanoid
-    
-    if getgenv().OldPos then
-        RootPart.CFrame = getgenv().OldPos
-        Character:SetPrimaryPartCFrame(getgenv().OldPos)
-    end
-    workspace.FallenPartsDestroyHeight = getgenv().FPDH or 0
 end
 
+-- Bucle principal
 task.spawn(function()
-    while task.wait(0.3) do
-        if not (_G.FlingSheriff or _G.FlingMurderer or _G.FlingInnocent) then continue end
+    while task.wait(0.25) do
+        if not (_G.FlingSheriff or _G.FlingMurderer or _G.FlingAllInnocents) then 
+            continue 
+        end
         
         for _, player in ipairs(Players:GetPlayers()) do
             if player == LocalPlayer or not player.Character then continue end
+            
             local role = getRole(player)
             if (role == "Sheriff" and _G.FlingSheriff) or 
                (role == "Murderer" and _G.FlingMurderer) or 
-               (role == "Innocent" and _G.FlingInnocent) then
+               (role == "Innocent" and _G.FlingAllInnocents) then
+                
                 SkidFling(player)
-                task.wait(0.4)
+                task.wait(role == "Innocent" and 0.2 or 0.4)
             end
         end
     end
 end)
 
--- Toggles
+-- Toggles con reset al desactivar
 FlingSection:Toggle({
     Title = "Fling Sheriff",
     Default = false,
     Callback = function(state)
         _G.FlingSheriff = state
-        WindUI:Notify({Title = "Role Fling", Content = "Fling Sheriff " .. (state and "✅ Activado" or "❌ Desactivado"), Duration = 3})
+        if not state then 
+            task.wait(0.1)
+            ResetPosition()
+            task.wait(0.2)
+            ResetPosition()
+        end
+        WindUI:Notify({Title = "Role Fling", Content = "Fling Sheriff " .. (state and "✅ Activado" or "❌ Desactivado + Reset"), Duration = 3})
     end
 })
 
@@ -1242,16 +1273,28 @@ FlingSection:Toggle({
     Default = false,
     Callback = function(state)
         _G.FlingMurderer = state
-        WindUI:Notify({Title = "Role Fling", Content = "Fling Asesino " .. (state and "✅ Activado" or "❌ Desactivado"), Duration = 3})
+        if not state then 
+            task.wait(0.1)
+            ResetPosition()
+            task.wait(0.2)
+            ResetPosition()
+        end
+        WindUI:Notify({Title = "Role Fling", Content = "Fling Asesino " .. (state and "✅ Activado" or "❌ Desactivado + Reset"), Duration = 3})
     end
 })
 
 FlingSection:Toggle({
-    Title = "Fling Inocente",
+    Title = "Fling ALL Inocentes",
     Default = false,
     Callback = function(state)
-        _G.FlingInnocent = state
-        WindUI:Notify({Title = "Role Fling", Content = "Fling Inocente " .. (state and "✅ Activado" or "❌ Desactivado"), Duration = 3})
+        _G.FlingAllInnocents = state
+        if not state then 
+            task.wait(0.1)
+            ResetPosition()
+            task.wait(0.2)
+            ResetPosition()
+        end
+        WindUI:Notify({Title = "Role Fling", Content = "Fling ALL Inocentes " .. (state and "✅ Activado (Masivo)" or "❌ Desactivado + Reset"), Duration = 3})
     end
 })
 -- ==========================================================
