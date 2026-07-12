@@ -1117,6 +1117,144 @@ task.spawn(function()
 end)
 
 -- ==========================================================
+-- NUEVA PESTAÑA: ROLE FLING
+-- ==========================================================
+local FlingTab = Window:Tab({Title = "Role Fling", Icon = "wind"})
+
+local FlingSection = FlingTab:Section({Title = "Fling por Rol"})
+
+-- ==========================================================
+-- ROLE FLING (Lógica SkidFling + Roles)
+-- ==========================================================
+
+_G.FlingSheriff = false
+_G.FlingMurderer = false
+_G.FlingInnocent = false
+
+local function getRole(player)
+    if not player or not player.Character then return "Innocent" end
+    local data = _G.LatestPlayerData and _G.LatestPlayerData[player.Name]
+    local role = data and data.Role or "Innocent"
+    
+    if player.Backpack:FindFirstChild("Gun") or player.Character:FindFirstChild("Gun") then
+        return "Sheriff"
+    elseif player.Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife") then
+        return "Murderer"
+    end
+    return role
+end
+
+local function SkidFling(TargetPlayer)
+    local Character = LocalPlayer.Character
+    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+    local RootPart = Humanoid and Humanoid.RootPart
+    local TCharacter = TargetPlayer.Character
+    if not TCharacter or not RootPart then return end
+    
+    local THumanoid = TCharacter:FindFirstChildOfClass("Humanoid")
+    local TRootPart = THumanoid and THumanoid.RootPart
+    local THead = TCharacter:FindFirstChild("Head")
+    
+    if THumanoid and THumanoid.Sit then return end
+    
+    getgenv().OldPos = getgenv().OldPos or RootPart.CFrame
+    workspace.FallenPartsDestroyHeight = 0/0
+    
+    local FPos = function(BasePart, Pos, Ang)
+        RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang
+        Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang)
+        RootPart.Velocity = Vector3.new(9e7, 9e7 * 10, 9e7)
+        RootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
+    end
+    
+    local SFBasePart = function(BasePart)
+        local Time = tick()
+        local Angle = 0
+        repeat
+            if BasePart.Velocity.Magnitude < 50 then
+                Angle = Angle + 100
+                FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle),0 ,0))
+                task.wait()
+                FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
+                task.wait()
+            else
+                FPos(BasePart, CFrame.new(0, 1.5, THumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
+                task.wait()
+                FPos(BasePart, CFrame.new(0, -1.5, -THumanoid.WalkSpeed), CFrame.Angles(0, 0, 0))
+                task.wait()
+            end
+        until tick() - Time > 2 or not (_G.FlingSheriff or _G.FlingMurderer or _G.FlingInnocent)
+    end
+    
+    local BV = Instance.new("BodyVelocity")
+    BV.Parent = RootPart
+    BV.Velocity = Vector3.new(0, 0, 0)
+    BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    
+    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+    
+    if TRootPart then
+        SFBasePart(TRootPart)
+    elseif THead then
+        SFBasePart(THead)
+    end
+    
+    BV:Destroy()
+    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
+    workspace.CurrentCamera.CameraSubject = Humanoid
+    
+    if getgenv().OldPos then
+        RootPart.CFrame = getgenv().OldPos
+        Character:SetPrimaryPartCFrame(getgenv().OldPos)
+    end
+    workspace.FallenPartsDestroyHeight = getgenv().FPDH or 0
+end
+
+task.spawn(function()
+    while task.wait(0.3) do
+        if not (_G.FlingSheriff or _G.FlingMurderer or _G.FlingInnocent) then continue end
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player == LocalPlayer or not player.Character then continue end
+            local role = getRole(player)
+            if (role == "Sheriff" and _G.FlingSheriff) or 
+               (role == "Murderer" and _G.FlingMurderer) or 
+               (role == "Innocent" and _G.FlingInnocent) then
+                SkidFling(player)
+                task.wait(0.4)
+            end
+        end
+    end
+end)
+
+-- Toggles
+FlingSection:Toggle({
+    Title = "Fling Sheriff",
+    Default = false,
+    Callback = function(state)
+        _G.FlingSheriff = state
+        WindUI:Notify({Title = "Role Fling", Content = "Fling Sheriff " .. (state and "✅ Activado" or "❌ Desactivado"), Duration = 3})
+    end
+})
+
+FlingSection:Toggle({
+    Title = "Fling Asesino (Murderer)",
+    Default = false,
+    Callback = function(state)
+        _G.FlingMurderer = state
+        WindUI:Notify({Title = "Role Fling", Content = "Fling Asesino " .. (state and "✅ Activado" or "❌ Desactivado"), Duration = 3})
+    end
+})
+
+FlingSection:Toggle({
+    Title = "Fling Inocente",
+    Default = false,
+    Callback = function(state)
+        _G.FlingInnocent = state
+        WindUI:Notify({Title = "Role Fling", Content = "Fling Inocente " .. (state and "✅ Activado" or "❌ Desactivado"), Duration = 3})
+    end
+})
+-- ==========================================================
 -- NUEVA PESTAÑA: EXTRAER
 -- ==========================================================
 local ExtraerTab = Window:Tab({Title = "Extraer", Icon = "download"})
