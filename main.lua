@@ -290,31 +290,45 @@ local function applyESP(player, role)
     end
 
     -- Aplicar Etiqueta [ASESINO]
-    local head = char:FindFirstChild("Head")
-    if head then
-        if role == "Murderer" then
-            if not head:FindFirstChild("RoleTag") then
-                local bill = Instance.new("BillboardGui")
-                bill.Name = "RoleTag"
-                bill.Adornee = head
-                bill.Size = UDim2.new(0, 200, 0, 50)
-                bill.StudsOffset = Vector3.new(0, 3, 0)
-                bill.AlwaysOnTop = true
-                bill.Parent = head
-                local label = Instance.new("TextLabel")
-                label.Parent = bill
-                label.Size = UDim2.new(1, 0, 1, 0)
-                label.BackgroundTransparency = 1
-                label.Text = player.Name .. "\n[ASESINO]"
-                label.TextColor3 = color
-                label.TextStrokeTransparency = 0
-                label.Font = Enum.Font.SourceSansBold
-                label.TextSize = 25
-            end
-        else
-            if head:FindFirstChild("RoleTag") then head.RoleTag:Destroy() end
+local head = char:FindFirstChild("Head")
+if head then
+    if role == "Murderer" then
+        if not head:FindFirstChild("RoleTag") then
+            local bill = Instance.new("BillboardGui")
+            bill.Name = "RoleTag"
+            bill.Adornee = head
+            
+            -- AJUSTE PARA MANTENER LA RECTITUD:
+            -- Con SizeOffset o configurando el tamaño en modo absoluto, 
+            -- pero lo más efectivo es fijar el tamaño y limitar la escala.
+            bill.Size = UDim2.new(0, 150, 0, 40) 
+            bill.StudsOffset = Vector3.new(0, 2.5, 0)
+            bill.AlwaysOnTop = true
+            
+            -- ESTA PROPIEDAD MANTIENE EL TAMAÑO FIJO Y RECTO
+            -- Hace que la etiqueta no se haga gigante al acercarse o mini al alejarse
+            bill.SizeOffset = Vector2.new(0, 0) 
+            
+            bill.Parent = head
+            
+            local label = Instance.new("TextLabel")
+            label.Parent = bill
+            label.Size = UDim2.new(1, 0, 1, 0)
+            label.BackgroundTransparency = 1
+            label.Text = "[ASESINO]" -- Simplificado para que no se deforme con nombres largos
+            label.TextColor3 = color
+            label.TextStrokeTransparency = 0
+            label.Font = Enum.Font.SourceSansBold
+            label.TextSize = 18
+            
+            -- Mantiene el texto perfectamente centrado y recto
+            label.TextXAlignment = Enum.TextXAlignment.Center
+            label.TextYAlignment = Enum.TextYAlignment.Center
         end
-    end
+    else
+        if head:FindFirstChild("RoleTag") then head.RoleTag:Destroy() end
+      end
+   end
 end
 
 -- 1. EVENTO INICIAL (Siempre activo para recibir data)
