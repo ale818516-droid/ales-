@@ -1131,29 +1131,32 @@ _G.FlingSheriff = false
 _G.FlingMurderer = false
 _G.FlingAllInnocents = false
 
+local savedPosition = nil
+
+local function SavePosition()
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if root then
+        savedPosition = root.CFrame
+        getgenv().OldPos = root.CFrame
+    end
+end
+
 local function ResetPosition()
     local char = LocalPlayer.Character
     if not char then return end
-    
     local root = char:FindFirstChild("HumanoidRootPart")
     local hum = char:FindFirstChildOfClass("Humanoid")
-    
-    if root then
+    if root and savedPosition then
+        root.CFrame = savedPosition
         root.Velocity = Vector3.new()
         root.RotVelocity = Vector3.new()
         root.AssemblyLinearVelocity = Vector3.new()
-        
-        -- Reset fuerte
-        if getgenv().OldPos then
-            root.CFrame = getgenv().OldPos
-        end
     end
-    
     if hum then
         hum:ChangeState(Enum.HumanoidStateType.GettingUp)
         workspace.CurrentCamera.CameraSubject = hum
     end
-    
     workspace.FallenPartsDestroyHeight = getgenv().FPDH or 0
 end
 
@@ -1161,7 +1164,6 @@ local function getRole(player)
     if not player or not player.Character then return "Innocent" end
     local data = _G.LatestPlayerData and _G.LatestPlayerData[player.Name]
     local role = data and data.Role or "Innocent"
-    
     if player.Backpack:FindFirstChild("Gun") or player.Character:FindFirstChild("Gun") then
         return "Sheriff"
     elseif player.Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife") then
@@ -1236,15 +1238,12 @@ task.spawn(function()
         if not (_G.FlingSheriff or _G.FlingMurderer or _G.FlingAllInnocents) then 
             continue 
         end
-        
         for _, player in ipairs(Players:GetPlayers()) do
             if player == LocalPlayer or not player.Character then continue end
-            
             local role = getRole(player)
             if (role == "Sheriff" and _G.FlingSheriff) or 
                (role == "Murderer" and _G.FlingMurderer) or 
                (role == "Innocent" and _G.FlingAllInnocents) then
-                
                 SkidFling(player)
                 task.wait(role == "Innocent" and 0.2 or 0.4)
             end
@@ -1252,13 +1251,15 @@ task.spawn(function()
     end
 end)
 
--- Toggles con reset al desactivar
+-- Toggles
 FlingSection:Toggle({
     Title = "Fling Sheriff",
     Default = false,
     Callback = function(state)
         _G.FlingSheriff = state
-        if not state then 
+        if state then
+            SavePosition()
+        else
             task.wait(0.1)
             ResetPosition()
             task.wait(0.2)
@@ -1273,7 +1274,9 @@ FlingSection:Toggle({
     Default = false,
     Callback = function(state)
         _G.FlingMurderer = state
-        if not state then 
+        if state then
+            SavePosition()
+        else
             task.wait(0.1)
             ResetPosition()
             task.wait(0.2)
@@ -1288,7 +1291,9 @@ FlingSection:Toggle({
     Default = false,
     Callback = function(state)
         _G.FlingAllInnocents = state
-        if not state then 
+        if state then
+            SavePosition()
+        else
             task.wait(0.1)
             ResetPosition()
             task.wait(0.2)
