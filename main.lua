@@ -998,48 +998,82 @@ KillSection:Toggle({
     end
 })
 
--- Lógica del contador
-local Gameplay = game:GetService("ReplicatedStorage")
-    :WaitForChild("Remotes")
-    :WaitForChild("Gameplay")
+-- ==========================================================
+-- LÓGICA DEL CONTADOR (Funciona incluso si entras a media ronda)
+-- ==========================================================
 
-local RoundStart = Gameplay:WaitForChild("RoundStart")
-local RoundEndFade = Gameplay:WaitForChild("RoundEndFade")
-local GameOver = Gameplay:WaitForChild("GameOver")
+local function FindTimerObject()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:GetAttribute("Time") ~= nil then
+            return obj
+        end
+    end
+    return nil
+end
 
-RoundStart.OnClientEvent:Connect(function(Time)
-    if typeof(Time) ~= "number" or not TimerEnabled then return end
+local TimerObject = nil
+local TimerConnection = nil
 
-    isInRound = true
-    RoundToken += 1
-    local Token = RoundToken
-
-    if TimerGui then
-        TimerGui.Enabled = true
+local function ConnectTimer(obj)
+    if TimerConnection then
+        TimerConnection:Disconnect()
+        TimerConnection = nil
     end
 
-    task.spawn(function()
-        local t = Time
-        local warned60 = false
-        local warned30 = false
+    TimerObject = obj
 
-        while t >= 0 and isInRound and Token == RoundToken and TimerEnabled do
-            UpdateRoundTimer(t)
+    if not TimerObject then
+        return
+    end
 
-            if t <= 30 and not warned30 then
-                warned30 = true
-                WindUI:Notify({Title = "⚠️ Tiempo", Content = "Quedan 30 segundos", Duration = 3})
-            elseif t <= 60 and not warned60 then
-                warned60 = true
-                WindUI:Notify({Title = "⏳ Tiempo", Content = "Queda 1 minuto", Duration = 3})
-            end
-
-            task.wait(1)
-            t -= 1
+    local function Update()
+        if not TimerEnabled or not TimerGui then
+            return
         end
-    end)
+
+        local time = TimerObject:GetAttribute("Time")
+
+        if typeof(time) == "number" and time > 0 then
+            isInRound = true
+            TimerGui.Enabled = true
+            UpdateRoundTimer(math.floor(time))
+        else
+            isInRound = false
+            TimerGui.Enabled = false
+
+            local label = TimerGui:FindFirstChild("TimerLabel")
+            if label then
+                label.Visible = false
+                label.Text = ""
+            end
+        end
+    end
+
+    Update()
+
+    TimerConnection = TimerObject:GetAttributeChangedSignal("Time"):Connect(Update)
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        if not TimerEnabled then
+            continue
+        end
+
+        if not TimerObject or not TimerObject.Parent then
+            local obj = FindTimerObject()
+            if obj then
+                ConnectTimer(obj)
+            end
+        end
+    end
 end)
 
+workspace.DescendantAdded:Connect(function(obj)
+    if obj:GetAttribute("Time") ~= nil then
+        ConnectTimer(obj)
+    end
+end)
 local function StopRound()
     isInRound = false
     RoundToken += 1
