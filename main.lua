@@ -1303,6 +1303,67 @@ FlingSection:Toggle({
     end
 })
 -- ==========================================================
+-- SECCIÓN: EXPONER ROLES EN CHAT
+-- ==========================================================
+local VisualsTab = Window:Tab({Title = "Exponer", Icon = "eye"}) -- Si ya la tienes, usa la variable existente
+local ExposeSection = VisualsTab:Section({Title = "Exponer Roles"})
+
+local function GetRolePlayer(roleType)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            if roleType == "Sheriff" and (player.Backpack:FindFirstChild("Gun") or player.Character:FindFirstChild("Gun")) then
+                return player.Name
+            elseif roleType == "Murderer" and (player.Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife")) then
+                return player.Name
+            end
+        end
+    end
+    return nil
+end
+
+local function SendChatMessage(message)
+    local args = {
+        [1] = message,
+        [2] = "All"
+    }
+    local chatRemote = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents") 
+                       and ReplicatedStorage.DefaultChatSystemChatEvents:FindFirstChild("SayMessageRequest")
+    
+    if chatRemote then
+        chatRemote:FireServer(unpack(args))
+    else
+        -- Fallback si el sistema de chat es el nuevo de Roblox
+        game:GetService("TextChatService").TextChannels.RBXGeneral:SendAsync(message)
+    end
+end
+
+ExposeSection:Button({
+    Title = "Exponer al Sheriff",
+    Callback = function()
+        local name = GetRolePlayer("Sheriff")
+        if name then
+            SendChatMessage("¡Cuidado! El Sheriff es: " .. name)
+            WindUI:Notify({Title = "Expositor", Content = "Mensaje enviado: Sheriff es " .. name, Duration = 3})
+        else
+            WindUI:Notify({Title = "Error", Content = "Sheriff no encontrado todavía.", Duration = 3})
+        end
+    end
+})
+
+ExposeSection:Button({
+    Title = "Exponer al Asesino",
+    Callback = function()
+        local name = GetRolePlayer("Murderer")
+        if name then
+            SendChatMessage("¡EL ASESINO ES: " .. name .. "!")
+            WindUI:Notify({Title = "Expositor", Content = "Mensaje enviado: Asesino es " .. name, Duration = 3})
+        else
+            WindUI:Notify({Title = "Error", Content = "Asesino no encontrado todavía.", Duration = 3})
+        end
+    end
+})
+
+-- ==========================================================
 -- NUEVA PESTAÑA: EXTRAER
 -- ==========================================================
 local ExtraerTab = Window:Tab({Title = "Extraer", Icon = "download"})
