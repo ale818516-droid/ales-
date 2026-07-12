@@ -511,32 +511,6 @@ RoleSection:Slider({
 })
 
 -- ==========================================================
--- AUTO JUMP (En Gun ESP Section)
--- ==========================================================
-_G.AutoJumpEnabled = false
-
-GunEspSection:Toggle({
-    Title = "Auto Jump",
-    Default = false,
-    Callback = function(state)
-        _G.AutoJumpEnabled = state
-    end
-})
-
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.AutoJumpEnabled then
-            local char = LocalPlayer.Character
-            local hum = char and char:FindFirstChild("Humanoid")
-            -- Salta solo si está en el suelo para mayor fluidez
-            if hum and hum.FloorMaterial ~= Enum.Material.Air then
-                hum:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end
-end)
-
--- ==========================================================
 -- SPECTATE SYSTEM (MISMA LÓGICA EXACTA DEL ARCHIVO ORIGINAL)
 -- ==========================================================
 
@@ -1442,6 +1416,125 @@ ExposeSection:Button({
         end
     end
 })
+
+-- ==========================================================
+-- PESTAÑA: PLAYERS (Control de Velocidad)
+-- ==========================================================
+local PlayersTab = Window:Tab({Title = "Players", Icon = "user"})
+local SpeedSection = PlayersTab:Section({Title = "Movement"})
+
+_G.PlayerSpeed = 16
+
+-- Slider para ajustar velocidad
+SpeedSection:Slider({
+    Title = "Velocidad de Caminata",
+    Value = { Min = 16, Max = 100, Default = 16 },
+    Callback = function(v)
+        _G.PlayerSpeed = v
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = v
+        end
+    end
+})
+
+-- Botón para resetear velocidad
+SpeedSection:Button({
+    Title = "Resetear Velocidad (16)",
+    Callback = function()
+        _G.PlayerSpeed = 16
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = 16
+        end
+        WindUI:Notify({Title = "Players", Content = "Velocidad restaurada a 16", Duration = 2})
+    end
+})
+
+-- Asegurar que la velocidad se mantenga al respawnear
+LocalPlayer.CharacterAdded:Connect(function(char)
+    task.wait(1)
+    if char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = _G.PlayerSpeed
+    end
+end)
+
+-- ==========================================================
+-- INTEGRACIÓN: AUTO JUMP EN PESTAÑA PLAYERS
+-- ==========================================================
+
+-- Asegúrate de que el toggle esté bajo SpeedSection (o crea una nueva sección llamada "Movimiento Extra")
+SpeedSection:Toggle({
+    Title = "Auto Jump",
+    Default = false,
+    Callback = function(state)
+        _G.AutoJumpEnabled = state
+    end
+})
+
+-- La lógica de abajo es global, así que no necesitas cambiarla de lugar,
+-- solo asegúrate de que esté debajo de tu configuración de UI.
+task.spawn(function()
+    while task.wait(0.1) do
+        if _G.AutoJumpEnabled then
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            -- Salta solo si está en el suelo
+            if hum and hum.FloorMaterial ~= Enum.Material.Air then
+                hum:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end
+end)
+
+
+-- ==========================================================
+-- NOCLIP + PISO DE SEGURIDAD (Posición Y fija)
+-- ==========================================================
+local RunService = game:GetService("RunService")
+local FloorPart = nil
+local LockedY = nil -- Nueva variable para fijar la altura
+
+SpeedSection:Toggle({
+    Title = "No Clip",
+    Default = false,
+    Callback = function(state)
+        _G.NoclipEnabled = state
+        
+        if state then
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then LockedY = hrp.Position.Y - 3.5 end -- Fijamos la altura al activar
+            
+            FloorPart = Instance.new("Part")
+            FloorPart.Name = "AntiFallFloor"
+            FloorPart.Size = Vector3.new(5, 1, 5)
+            FloorPart.Transparency = 1 
+            FloorPart.Anchored = true
+            FloorPart.CanCollide = true
+            FloorPart.Parent = workspace
+        else
+            if FloorPart then FloorPart:Destroy() FloorPart = nil end
+            LockedY = nil -- Limpiamos la altura fija
+        end
+    end
+})
+
+RunService.Stepped:Connect(function()
+    if _G.NoclipEnabled and FloorPart and LockedY then
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            -- Mantenemos X y Z dinámicos para que te siga, pero Y fijo para que no suba
+            FloorPart.Position = Vector3.new(hrp.Position.X, LockedY, hrp.Position.Z)
+            
+            -- Lógica de colisión intacta
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
 
 -- ==========================================================
 -- NUEVA PESTAÑA: EXTRAER
