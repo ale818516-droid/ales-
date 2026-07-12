@@ -509,6 +509,33 @@ RoleSection:Slider({
         HitboxSettings.Hitbox.Size = Value
     end
 })
+
+-- ==========================================================
+-- AUTO JUMP (En Gun ESP Section)
+-- ==========================================================
+_G.AutoJumpEnabled = false
+
+GunEspSection:Toggle({
+    Title = "Auto Jump",
+    Default = false,
+    Callback = function(state)
+        _G.AutoJumpEnabled = state
+    end
+})
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if _G.AutoJumpEnabled then
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            -- Salta solo si está en el suelo para mayor fluidez
+            if hum and hum.FloorMaterial ~= Enum.Material.Air then
+                hum:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end
+end)
+
 -- ==========================================================
 -- SPECTATE SYSTEM (MISMA LÓGICA EXACTA DEL ARCHIVO ORIGINAL)
 -- ==========================================================
