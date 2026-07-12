@@ -369,7 +369,46 @@ RoleSection:Toggle({
         end
     end
 })
+-- Agrega esto justo debajo de tu RoleSection existente
+local GunEspSection = VisualsTab:Section({Title = "Gun ESP"})
 
+GunEspSection:Toggle({
+    Title = "Highlight Gun Drop (Dorado)",
+    Default = false,
+    Callback = function(state)
+        _G.HighlightGun = state
+    end
+})
+
+-- Gun Highlight Loop
+task.spawn(function()
+    while true do
+        if _G.HighlightGun then
+            for _, obj in pairs(Workspace:GetDescendants()) do
+                if obj.Name == "GunDrop" then
+                    local hl = obj:FindFirstChild("GunHighlightNet")
+                    if not hl then
+                        hl = Instance.new("Highlight")
+                        hl.Name = "GunHighlightNet"
+                        hl.FillColor = Color3.fromRGB(255, 215, 0)
+                        hl.OutlineColor = Color3.fromRGB(255, 165, 0)
+                        hl.OutlineTransparency = 0
+                        hl.FillTransparency = 0.5
+                        hl.Parent = obj
+                    end
+                end
+            end
+        else
+            for _, obj in pairs(Workspace:GetDescendants()) do
+                if obj.Name == "GunDrop" then
+                    local hl = obj:FindFirstChild("GunHighlightNet")
+                    if hl then hl:Destroy() end
+                end
+            end
+        end
+        task.wait(0.7)
+    end
+end)
 -- ==========================================================
 -- HITBOX (EXACTO del archivo original)
 -- ==========================================================
