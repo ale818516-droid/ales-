@@ -826,6 +826,311 @@ KillSection:Toggle({
     end
 })
 
+-- ==========================================================
+-- CAMERA HARD-LOCK GUI (Solo Sheriff y Asesino)
+-- ==========================================================
+local AimbotMasterToggle = false
+local AimbotActive = false
+local AimbotConnection = nil
+local CurrentTarget = nil
+local screenGui = nil
+
+-- Función modificada: Solo busca Sheriff o Murderer
+local function GetClosestRoleToCursor()
+    local Target = nil
+    local ShortestDistance = math.huge
+    local MousePos = Camera.ViewportSize / 2
+
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+            
+            -- Detectar rol
+            local isSheriff = Player.Backpack:FindFirstChild("Gun") or Player.Character:FindFirstChild("Gun")
+            local isMurderer = Player.Backpack:FindFirstChild("Knife") or Player.Character:FindFirstChild("Knife")
+            
+            if isSheriff or isMurderer then
+                local RootPart = Player.Character.HumanoidRootPart
+                local Pos, OnScreen = Camera:WorldToViewportPoint(RootPart.Position)
+
+                if OnScreen then
+                    local Distance = (Vector2.new(Pos.X, Pos.Y) - MousePos).Magnitude
+                    if Distance < ShortestDistance then
+                        Target = Player
+                        ShortestDistance = Distance
+                    end
+                end
+            end
+        end
+    end
+    return Target
+end
+
+local function StartAimbot()
+    if AimbotConnection then AimbotConnection:Disconnect() end
+    AimbotConnection = RunService.RenderStepped:Connect(function()
+        if AimbotMasterToggle and AimbotActive then
+            CurrentTarget = GetClosestRoleToCursor()
+            
+            if CurrentTarget and CurrentTarget.Character and CurrentTarget.Character:FindFirstChild("Head") then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, CurrentTarget.Character.Head.Position)
+            end
+        end
+    end)
+end
+
+-- Toggle Camera Hard-Lock (Solo Roles Importantes)
+KillSection:Toggle({
+    ["Title"] = "Camera Hard-Lock (Solo Sheriff / Asesino)",
+    ["Value"] = false,
+    ["Callback"] = function(State)
+        AimbotMasterToggle = State
+        
+        if State then
+            -- Crear GUI flotante
+            local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+            screenGui = Instance.new("ScreenGui")
+            screenGui.Name = "CustomJumpGui"
+            screenGui.ResetOnSpawn = false
+            screenGui.Parent = PlayerGui
+
+            local VERTICAL_OFFSET = 0.10
+
+            local jumpButton = Instance.new("TextButton")
+            jumpButton.Name = "JumpButton"
+            jumpButton.Size = UDim2.new(0, 90, 0, 90)
+            jumpButton.AnchorPoint = Vector2.new(1, 0.5) 
+            jumpButton.Position = UDim2.new(1, -10, VERTICAL_OFFSET, 0)
+            jumpButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20) 
+            jumpButton.BackgroundTransparency = 0.5
+            jumpButton.Text = ""
+            jumpButton.AutoButtonColor = true
+            jumpButton.Parent = screenGui
+
+            local uiCorner = Instance.new("UICorner", jumpButton)
+            uiCorner.CornerRadius = UDim.new(1, 0)
+
+            local insetStrokeFrame = Instance.new("Frame", jumpButton)
+            insetStrokeFrame.Name = "InsetStroke"
+            insetStrokeFrame.Size = UDim2.new(0.9, 0, 0.9, 0) 
+            insetStrokeFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            insetStrokeFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+            insetStrokeFrame.BackgroundTransparency = 1 
+
+            local insetCorner = Instance.new("UICorner", insetStrokeFrame)
+            insetCorner.CornerRadius = UDim.new(1, 0)
+
+            local uiStroke = Instance.new("UIStroke", insetStrokeFrame)
+            uiStroke.Thickness = 2 
+            uiStroke.Color = Color3.fromRGB(255, 255, 255) 
+            uiStroke.Transparency = 0.5 
+            uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+            local arrowIcon = Instance.new("ImageLabel", jumpButton)
+            arrowIcon.Name = "ArrowIcon"
+            arrowIcon.Size = UDim2.new(0.7, 0, 0.7, 0) 
+            arrowIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+            arrowIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+            arrowIcon.BackgroundTransparency = 1
+            arrowIcon.Image = "rbxassetid://17544521115"
+            arrowIcon.ImageColor3 = Color3.fromRGB(255, 255, 255) 
+            arrowIcon.ImageTransparency = 0.5 
+
+            -- Click
+            jumpButton.MouseButton1Click:Connect(function()
+                AimbotActive = not AimbotActive
+                if AimbotActive then
+                    arrowIcon.ImageColor3 = Color3.fromRGB(255, 0, 0)
+                    WindUI:Notify({Title = "Hard-Lock", Content = "Activado (Solo Roles)", Duration = 2})
+                    if not AimbotConnection then StartAimbot() end
+                else
+                    arrowIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
+                    CurrentTarget = nil
+                end
+            end)
+        else
+            -- Cleanup
+            AimbotActive = false
+            CurrentTarget = nil
+            if screenGui then screenGui:Destroy() screenGui = nil end
+            if AimbotConnection then AimbotConnection:Disconnect() AimbotConnection = nil end
+        end
+    end
+})
+
+-- ==========================================================
+-- MOBILE MURDERER BUTTON (LÓGICA EXACTA DEL ARCHIVO ORIGINAL)
+-- ==========================================================
+local AutoShootEnabled = false
+local currentScreenGui = nil
+local inventoryCheckConnection = nil
+local hasNotifiedSuccess = false
+local hasNotifiedFailure = false
+
+local function Notify(title, text)
+    WindUI:Notify({Title = title, Content = text, Duration = 3})
+end
+
+local function GetMurderer()
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer and Player.Character then
+            local Knife = Player.Backpack:FindFirstChild("Knife") or Player.Character:FindFirstChild("Knife")
+            if Knife then return Player end
+        end
+    end
+    return nil
+end
+
+local function InstantShootSequence()
+    local Character = LocalPlayer.Character
+    local Backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not Character or not Backpack then return end
+
+    local Gun = Backpack:FindFirstChild("Gun") or Character:FindFirstChild("Gun")
+    
+    if Gun then
+        Gun.Parent = Character
+        task.wait()
+        
+        local ShootRemote = Gun:FindFirstChild("Shoot")
+        local Murderer = GetMurderer()
+        
+        if ShootRemote and Murderer and Murderer.Character:FindFirstChild("HumanoidRootPart") then
+            local TargetRoot = Murderer.Character.HumanoidRootPart
+            local MyRoot = Character:FindFirstChild("HumanoidRootPart")
+            
+            if MyRoot then
+                local PredictedPos = TargetRoot.CFrame + (TargetRoot.Velocity * 0.125)
+                local args = { MyRoot.CFrame, PredictedPos }
+                ShootRemote:FireServer(unpack(args))
+            end
+        end
+        
+        task.wait()
+        Gun.Parent = Backpack
+    end
+end
+
+local function CreateCombatGui()
+    if currentScreenGui then return end
+    
+    currentScreenGui = Instance.new("ScreenGui")
+    currentScreenGui.Name = "CustomJumpGui"
+    currentScreenGui.ResetOnSpawn = false
+    currentScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    local jumpButton = Instance.new("TextButton")
+    jumpButton.Name = "JumpButton"
+    jumpButton.Size = UDim2.new(0, 90, 0, 90)
+    jumpButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20) 
+    jumpButton.BackgroundTransparency = 0.5
+    jumpButton.Text = ""
+    jumpButton.AutoButtonColor = true
+    jumpButton.Parent = currentScreenGui
+
+    -- Posicionamiento exacto del archivo original
+    local function alignToMobile()
+        local touchGui = LocalPlayer.PlayerGui:FindFirstChild("TouchGui")
+        if touchGui then
+            local controlFrame = touchGui:FindFirstChild("TouchControlFrame")
+            local jumpControl = controlFrame and controlFrame:FindFirstChild("JumpButton")
+            if jumpControl then
+                jumpButton.Position = UDim2.new(
+                    jumpControl.Position.X.Scale, 
+                    jumpControl.Position.X.Offset - 110, 
+                    jumpControl.Position.Y.Scale, 
+                    jumpControl.Position.Y.Offset - 110
+                )
+            end
+        else
+            jumpButton.Position = UDim2.new(0.85, 0, 0.7, 0)
+        end
+    end
+    alignToMobile()
+
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(1, 0)
+    uiCorner.Parent = jumpButton
+
+    local insetStrokeFrame = Instance.new("Frame")
+    insetStrokeFrame.Name = "InsetStroke"
+    insetStrokeFrame.Size = UDim2.new(0.9, 0, 0.9, 0) 
+    insetStrokeFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    insetStrokeFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    insetStrokeFrame.BackgroundTransparency = 1 
+    insetStrokeFrame.Parent = jumpButton
+
+    local insetCorner = Instance.new("UICorner")
+    insetCorner.CornerRadius = UDim.new(1, 0)
+    insetCorner.Parent = insetStrokeFrame
+
+    local uiStroke = Instance.new("UIStroke")
+    uiStroke.Thickness = 2 
+    uiStroke.Color = Color3.fromRGB(255, 255, 255) 
+    uiStroke.Transparency = 0.5 
+    uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    uiStroke.Parent = insetStrokeFrame
+
+    local arrowIcon = Instance.new("ImageLabel")
+    arrowIcon.Name = "ArrowIcon"
+    arrowIcon.Size = UDim2.new(0.7, 0, 0.7, 0) 
+    arrowIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+    arrowIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+    arrowIcon.BackgroundTransparency = 1
+    arrowIcon.Image = "rbxassetid://139650104834071"  -- Icono exacto del archivo
+    arrowIcon.ImageColor3 = Color3.fromRGB(255, 255, 255) 
+    arrowIcon.ImageTransparency = 0.5 
+    arrowIcon.Parent = jumpButton
+
+    jumpButton.MouseButton1Click:Connect(function()
+        InstantShootSequence()
+    end)
+end
+
+-- Toggle principal (igual al original)
+KillSection:Toggle({
+    ["Title"] = "Mobile Murderer Button",
+    ["Value"] = false,
+    ["Callback"] = function(State)
+        AutoShootEnabled = State
+        hasNotifiedSuccess = false
+        hasNotifiedFailure = false
+        
+        if State then
+            inventoryCheckConnection = RunService.Heartbeat:Connect(function()
+                if not AutoShootEnabled then return end
+                
+                local Backpack = LocalPlayer:FindFirstChild("Backpack")
+                local Character = LocalPlayer.Character
+                local Gun = (Backpack and Backpack:FindFirstChild("Gun")) or (Character and Character:FindFirstChild("Gun"))
+                
+                if Gun then
+                    if not currentScreenGui then
+                        CreateCombatGui()
+                        if not hasNotifiedSuccess then
+                            Notify("Eliana Hub", "Gun Detected: Combat Button is now visible.")
+                            hasNotifiedSuccess = true
+                            hasNotifiedFailure = false
+                        end
+                    end
+                else
+                    if currentScreenGui then
+                        currentScreenGui:Destroy()
+                        currentScreenGui = nil
+                    end
+                    if not hasNotifiedFailure then
+                        Notify("Project Nexora", "Gun Needed: You need a Gun to use this feature.")
+                        hasNotifiedFailure = true
+                        hasNotifiedSuccess = false
+                    end
+                end
+            end)
+        else
+            if inventoryCheckConnection then inventoryCheckConnection:Disconnect() end
+            if currentScreenGui then currentScreenGui:Destroy() currentScreenGui = nil end
+        end
+    end
+})
+
 local KillSection = MurderTab:Section({Title = "Fling & Timer"})
 -- ==========================================================
 -- TOUCH FLING (MISMA LÓGICA EXACTA DEL ARCHIVO ORIGINAL)
