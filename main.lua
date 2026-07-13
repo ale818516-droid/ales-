@@ -733,6 +733,7 @@ KillSection:Toggle({
         SendNexoraNotification("Auto Kill Sheriff", state and "Activado" or "Desactivado", 3, state and "sword" or "x")
     end
 })
+local KillSection = MurderTab:Section({Title = "Sheriff"})
 -- ==========================================================
 -- COMBO AIMBOT + SILENT AUTO SHOOT (Solo Asesino)
 -- ==========================================================
@@ -830,63 +831,71 @@ KillSection:Toggle({
         end
     end
 })
--- ==========================================================
--- AIMBOT MEJORADO - Solo Asesino (Seguimiento en Tiempo Real)
--- ==========================================================
+-- // Toggle único para controlar todo el sistema
+KillSection:Toggle({
+    Title = "Silent Aim",
+    Default = false,
+    Callback = function(state)
+        _G.AimbotComboEnabled = state
+    end
+})
 
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
-
-local AimbotEnabled = false
-local Prediction = 0.165  -- Predicción más precisa
-local Smoothing = 0.12     -- Suavizado para que no sea tan brusco
-
-local CurrentTarget = nil
-
-local function GetMurderer()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local hasKnife = player.Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife")
-            if hasKnife then
-                local root = player.Character:FindFirstChild("HumanoidRootPart")
-                if root and player.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
-                    return root
-                end
+-- // PARTE 1: Seguimiento de Cámara (Se mantiene igual)
+RunService.RenderStepped:Connect(function()
+    if not _G.AimbotComboEnabled then return end
+    
+    local char = LocalPlayer.Character
+    local hasGunEquipped = char and char:FindFirstChild("Gun")
+    
+    if hasGunEquipped then
+        local murderer = getMurderer()
+        if murderer then
+            local targetPart = murderer:FindFirstChild("UpperTorso") or murderer:FindFirstChild("Torso") or murderer:FindFirstChild("HumanoidRootPart")
+            if targetPart then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
             end
         end
     end
-    return nil
-end
-
--- Seguimiento suave en tiempo real
-RunService.RenderStepped:Connect(function()
-    if not AimbotEnabled then return end
-
-    CurrentTarget = GetMurderer()
-    
-    if CurrentTarget then
-        local camera = workspace.CurrentCamera
-        local targetPos = CurrentTarget.Position + (CurrentTarget.Velocity * Prediction)
-        
-        -- Suavizado para que sea más natural
-        local currentLook = camera.CFrame.LookVector
-        local desiredLook = (targetPos - camera.CFrame.Position).Unit
-        
-        local newLook = currentLook:Lerp(desiredLook, Smoothing)
-        
-        camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + newLook)
-    end
 end)
 
--- Toggle en tu sección Kill Options
-KillSection:Toggle({
-    ["Title"] = "Aimbot (Murder)",
-    ["Value"] = false,
-    ["Callback"] = function(state)
-        AimbotEnabled = state
-        SendNexoraNotification("Aimbot Mejorado", state and "Activado - Seguimiento Real" or "Desactivado", 3, state and "target" or "x")
+-- // PARTE 2: Intercepción de Disparo (Solo se activa al disparar tú)
+local gun = ReplicatedStorage:WaitForChild("ClientServices"):WaitForChild("WeaponService"):WaitForChild("GunFired") -- Si tu arma usa evento remoto
+
+-- Esto intercepta cuando el arma intenta disparar
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+
+mt.__namecall = newcclosure(function(self, ...)
+    local args = {...}
+    local method = getnamecallmethod()
+    
+    -- Si el toggle está activo y estás disparando
+    if _G.AimbotComboEnabled and method == "FireServer" and self.Name == "Shoot" then
+        local murdererChar = getMurderer()
+        if murdererChar and murdererChar:FindFirstChild("HumanoidRootPart") then
+            local targetHRP = murdererChar.HumanoidRootPart
+            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            
+            if root then
+                -- MANTENEMOS TU LÓGICA MATEMÁTICA EXACTA
+                local direction = (targetHRP.Position - root.Position)
+                local vel = targetHRP.AssemblyLinearVelocity
+                local dist = direction.Magnitude
+                local prediction = vel * (dist / 500) * 0.30
+                local targetPos = targetHRP.CFrame + prediction
+                
+                -- Modificamos el argumento del disparo con tu predicción
+                args[2] = targetPos 
+                return oldNamecall(self, unpack(args))
+            end
+        end
     end
-})
+    
+    return oldNamecall(self, ...)
+end)
+setreadonly(mt, true)
+
 
 local KillSection = MurderTab:Section({Title = "Fling & Timer"})
 -- ==========================================================
