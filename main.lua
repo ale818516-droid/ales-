@@ -1537,6 +1537,28 @@ RunService.Stepped:Connect(function()
 end)
 
 -- ==========================================================
+-- INFINITE JUMP (Toggle para la sección)
+-- ==========================================================
+_G.InfiniteJumpEnabled = false
+
+SpeedSection:Toggle({
+    Title = "Salto Infinito",
+    Default = false,
+    Callback = function(state)
+        _G.InfiniteJumpEnabled = state
+    end
+})
+
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if _G.InfiniteJumpEnabled then
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+        if hum then
+            hum:ChangeState("Jumping")
+        end
+    end
+end)
+
+-- ==========================================================
 -- NUEVA PESTAÑA: EXTRAER
 -- ==========================================================
 local ExtraerTab = Window:Tab({Title = "Extraer", Icon = "download"})
