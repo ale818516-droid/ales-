@@ -1533,7 +1533,7 @@ end
 
 -- Bucle principal
 task.spawn(function()
-    while task.wait(0.25) do
+    while task.wait(0.3) do
         if not (_G.FlingSheriff or _G.FlingMurderer or _G.FlingAllInnocents) then 
             continue 
         end
