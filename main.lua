@@ -887,6 +887,8 @@ KillSection:Toggle({
         SendNexoraNotification("Aimbot Mejorado", state and "Activado - Seguimiento Real" or "Desactivado", 3, state and "target" or "x")
     end
 })
+
+local KillSection = MurderTab:Section({Title = "Fling & Timer"})
 -- ==========================================================
 -- TOUCH FLING (MISMA LÓGICA EXACTA DEL ARCHIVO ORIGINAL)
 -- ==========================================================
@@ -1558,6 +1560,7 @@ game:GetService("UserInputService").JumpRequest:Connect(function()
     end
 end)
 
+local SpeedSection = PlayersTab:Section({Title = "Fly"})
 -- // VARIABLES GLOBALES
 local nowe = false
 local speeds = 1
@@ -1744,7 +1747,7 @@ SpeedSection:Slider({
     end
 })
 
-
+local SpeedSection = PlayersTab:Section({Title = "TELEPOR LOBBY & TELEPORT ORIGINAL POSITION"})
 -- // Variable global para guardar la posición de origen
 _G.LastPosition = nil
 
