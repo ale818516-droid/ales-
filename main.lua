@@ -1743,6 +1743,39 @@ SpeedSection:Slider({
         _G.StealthSpeed = v 
     end
 })
+
+
+-- // Variable global para guardar la posición de origen
+_G.LastPosition = nil
+
+-- // BOTÓN 1: Ir al punto de la foto (y guardar de dónde venías)
+SpeedSection:Button({
+    Title = "Teleport a Punto Fijo",
+    Callback = function()
+        local char = game:GetService("Players").LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            -- Guardamos dónde estabas ANTES de irte
+            _G.LastPosition = char.HumanoidRootPart.CFrame
+            
+            -- Hacemos el TP a las coordenadas de la foto
+            char.HumanoidRootPart.CFrame = CFrame.new(14.156, 511.381, -25.143)
+        end
+    end
+})
+
+-- // BOTÓN 2: Volver a donde estabas
+SpeedSection:Button({
+    Title = "Volver a mi posición",
+    Callback = function()
+        if _G.LastPosition then
+            local char = game:GetService("Players").LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame = _G.LastPosition
+            end
+        end
+    end
+})
+
 -- ==========================================================
 -- NUEVA PESTAÑA: EXTRAER
 -- ==========================================================
