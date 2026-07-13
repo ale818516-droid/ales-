@@ -1753,7 +1753,7 @@ DupeSection:Button({
     Title = "Cargar Animaciones Mods",
     Description = "Ejecuta el script Universal JAnimacionesMods", -- opcional
     Callback = function()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-JAnimacionesMods-67700"))()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-FREE-BUNDLES-l-FE-241758"))()
         -- Notificación opcional para confirmar
         WindUI:Notify({
             Title = "Animaciones",
