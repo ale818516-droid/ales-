@@ -423,17 +423,15 @@ task.spawn(function()
         task.wait(0.7)
     end
 end)
+
 -- ==========================================================
--- HITBOX (EXACTO del archivo original)
+-- HITBOX FÍSICA PARA SHERIFF + INOCENTES
 -- ==========================================================
 
 local HitboxSettings = {
     ["Hitbox"] = {
         ["Enabled"] = false,
-        ["Size"] = 5,
-        ["Color"] = Color3.new(1, 0, 0),
-        ["Adornments"] = {},
-        ["Connection"] = nil
+        ["Size"] = 10
     }
 }
 
@@ -442,39 +440,29 @@ local function UpdateHitboxes()
         for _, Player in pairs(Players:GetPlayers()) do
             if Player ~= LocalPlayer then
                 local Character = Player.Character
-                local Adornment = HitboxSettings.Hitbox.Adornments[Player]
-                if Character and HitboxSettings.Hitbox.Enabled then
+                if Character then
                     local RootPart = Character:FindFirstChild("HumanoidRootPart")
                     if RootPart then
-                        if Adornment then
-                            Adornment.Size = Vector3.new(HitboxSettings.Hitbox.Size, HitboxSettings.Hitbox.Size, HitboxSettings.Hitbox.Size)
-                            Adornment.Color3 = HitboxSettings.Hitbox.Color
-                        else
-                            local NewAdornment = Instance.new("BoxHandleAdornment")
-                            NewAdornment.Adornee = RootPart
-                            NewAdornment.Size = Vector3.new(HitboxSettings.Hitbox.Size, HitboxSettings.Hitbox.Size, HitboxSettings.Hitbox.Size)
-                            NewAdornment.Color3 = HitboxSettings.Hitbox.Color
-                            NewAdornment.Transparency = 0.4
-                            NewAdornment.ZIndex = 10
-                            NewAdornment.Parent = RootPart
-                            HitboxSettings.Hitbox.Adornments[Player] = NewAdornment
+                        
+                        -- Detección: Sheriff o Inocente (no Asesino)
+                        local isMurderer = Character:FindFirstChild("Knife") or 
+                                          (Player.Backpack and Player.Backpack:FindFirstChild("Knife")) or
+                                          (Character:FindFirstChild("Role") and Character.Role.Value == "Murderer")
+                        
+                        if not isMurderer then
+                            RootPart.Size = Vector3.new(HitboxSettings.Hitbox.Size, HitboxSettings.Hitbox.Size, HitboxSettings.Hitbox.Size)
+                            RootPart.Transparency = 0.7
+                            RootPart.CanCollide = false
                         end
                     end
                 end
             end
         end
-    else
-        for Player, Adornment in pairs(HitboxSettings.Hitbox.Adornments) do
-            if Adornment and Adornment.Parent then
-                Adornment:Destroy()
-            end
-        end
-        HitboxSettings.Hitbox.Adornments = {}
     end
 end
 
 RoleSection:Toggle({
-    ["Title"] = "Hitboxes",
+    ["Title"] = "Hitbox (Sheriff + Inocentes)",
     ["Value"] = false,
     ["Callback"] = function(State)
         HitboxSettings.Hitbox.Enabled = State
@@ -487,12 +475,15 @@ RoleSection:Toggle({
                 HitboxSettings.Hitbox.Connection:Disconnect()
                 HitboxSettings.Hitbox.Connection = nil
             end
-            for _, Adornment in pairs(HitboxSettings.Hitbox.Adornments) do
-                if Adornment and Adornment.Parent then
-                    Adornment:Destroy()
+            -- Restaurar tamaño normal al desactivar
+            for _, Player in pairs(Players:GetPlayers()) do
+                if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+                    local root = Player.Character.HumanoidRootPart
+                    root.Size = Vector3.new(2, 2, 1)
+                    root.Transparency = 0
+                    root.CanCollide = true
                 end
             end
-            HitboxSettings.Hitbox.Adornments = {}
         end
     end
 })
@@ -501,9 +492,9 @@ RoleSection:Slider({
     ["Title"] = "Hitbox Size",
     ["step"] = 0.5,
     ["Value"] = {
-        ["Min"] = 1,
-        ["Max"] = 20,
-        ["Default"] = 5
+        ["Min"] = 2,
+        ["Max"] = 60,
+        ["Default"] = 10
     },
     ["Callback"] = function(Value)
         HitboxSettings.Hitbox.Size = Value
