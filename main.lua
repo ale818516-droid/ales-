@@ -1776,6 +1776,21 @@ SpeedSection:Button({
     end
 })
 
+-- // Variable para guardar la posición en segundo plano
+local AutoSavedPos = game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame
+
+-- // 1. Bucle en segundo plano (guarda tu posición cada 3 segundos)
+spawn(function()
+    while true do
+        task.wait(3)
+        local char = game:GetService("Players").LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            AutoSavedPos = hrp.CFrame
+        end
+    end
+end)
+
 -- ==========================================================
 -- NUEVA PESTAÑA: EXTRAER
 -- ==========================================================
