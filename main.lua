@@ -1680,6 +1680,69 @@ SpeedSection:Slider({
     end
 })
 
+-- // VARIABLES GLOBALES (Asegúrate de poner esto fuera de la sección)
+local FloorPart = nil
+
+-- // SLIDER VELOCIDAD SIGILOSA
+_G.StealthSpeed = 1 
+
+-- // TOGGLE: MOVIMIENTO SIGILOSO + PISO ESTÁTICO
+SpeedSection:Toggle({
+    Title = "Movimiento Sigiloso + Piso",
+    Default = false,
+    Callback = function(state)
+        _G.SilentMove = state
+        local player = game:GetService("Players").LocalPlayer
+        
+        -- Lógica de Sigilo
+        local function applyStealth(char)
+            local animate = char:FindFirstChild("Animate")
+            if animate then animate.Disabled = _G.SilentMove end
+        end
+
+        if state then
+            -- 1. Capturamos la posición completa (X, Y, Z) al activar
+            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            local FixedPos = hrp and hrp.Position - Vector3.new(0, 3.5, 0) or Vector3.new(0,0,0)
+            
+            -- Crear el Piso en la posición fija
+            FloorPart = Instance.new("Part")
+            FloorPart.Name = "AntiFallFloor"
+            FloorPart.Size = Vector3.new(20, 1, 20) -- Un poco más grande para mayor seguridad
+            FloorPart.Transparency = 0.8 -- Le puse 0.8 para que veas dónde está, cámbialo a 1 para invisible
+            FloorPart.Anchored = true
+            FloorPart.CanCollide = true
+            FloorPart.Position = FixedPos -- Se queda aquí para siempre
+            FloorPart.Parent = workspace
+            
+            -- Lógica de movimiento sigiloso (Sin mover el piso)
+            spawn(function()
+                while _G.SilentMove do
+                    local char = player.Character
+                    local hum = char and char:FindFirstChild("Humanoid")
+                    
+                    if char and hum and hum.MoveDirection.Magnitude > 0 then
+                        char:TranslateBy(hum.MoveDirection * (_G.StealthSpeed * 0.1))
+                    end
+                    game:GetService("RunService").Heartbeat:Wait()
+                end
+            end)
+        else
+            -- Destruir el Piso al desactivar
+            if FloorPart then FloorPart:Destroy() FloorPart = nil end
+        end
+
+        if player.Character then applyStealth(player.Character) end
+    end
+})
+
+SpeedSection:Slider({
+    Title = "Velocidad Sigilosa",
+    Value = { Min = 1, Max = 28, Default = 1 },
+    Callback = function(v)
+        _G.StealthSpeed = v 
+    end
+})
 -- ==========================================================
 -- NUEVA PESTAÑA: EXTRAER
 -- ==========================================================
