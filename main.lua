@@ -743,8 +743,6 @@ local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
 _G.AimbotComboEnabled = false -- Auto Shoot
-_G.AimbotManualEnabled = false -- Manual
-
 -- TU LÓGICA ORIGINAL getMurderer
 local function getMurderer()
     for _, player in ipairs(Players:GetPlayers()) do
@@ -836,15 +834,6 @@ KillSection:Toggle({
         _G.AimbotComboEnabled = state
     end
 })
-
-KillSection:Toggle({
-    ["Title"] = "Manual Silent Aim",
-    ["Value"] = false,
-    ["Callback"] = function(state)
-        _G.AimbotManualEnabled = state
-    end
-})
-
 
 local KillSection = MurderTab:Section({Title = "Fling & Timer"})
 -- ==========================================================
