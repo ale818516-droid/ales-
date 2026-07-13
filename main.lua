@@ -1558,6 +1558,128 @@ game:GetService("UserInputService").JumpRequest:Connect(function()
     end
 end)
 
+-- // VARIABLES GLOBALES
+local nowe = false
+local speeds = 1
+local tpwalking = false
+
+-- // FLY (Toggle)
+SpeedSection:Toggle({
+    Title = "Fly",
+    Default = false,
+    Callback = function(state)
+        nowe = state
+        local speaker = game:GetService("Players").LocalPlayer
+        
+        if nowe == false then
+            tpwalking = false
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Flying,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Landed,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Running,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics,true)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming,true)
+            speaker.Character.Humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+        else 
+            for i = 1, speeds do
+                spawn(function()
+                    local hb = game:GetService("RunService").Heartbeat	
+                    tpwalking = true
+                    local chr = speaker.Character
+                    local hum = chr and chr:FindFirstChildWhichIsA("Humanoid")
+                    while tpwalking and hb:Wait() and chr and hum and hum.Parent do
+                        if hum.MoveDirection.Magnitude > 0 then
+                            chr:TranslateBy(hum.MoveDirection)
+                        end
+                    end
+                end)
+            end
+            speaker.Character.Animate.Disabled = true
+            local Hum = speaker.Character:FindFirstChildOfClass("Humanoid") or speaker.Character:FindFirstChildOfClass("AnimationController")
+            for i,v in next, Hum:GetPlayingAnimationTracks() do
+                v:AdjustSpeed(0)
+            end
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Flying,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Landed,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Running,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics,false)
+            speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming,false)
+            speaker.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Swimming)
+
+            if speaker.Character:FindFirstChildOfClass("Humanoid").RigType == Enum.HumanoidRigType.R6 then
+                local torso = speaker.Character.Torso
+                local bg = Instance.new("BodyGyro", torso)
+                bg.P = 9e4
+                bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+                bg.cframe = torso.CFrame
+                local bv = Instance.new("BodyVelocity", torso)
+                bv.velocity = Vector3.new(0,0.1,0)
+                bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+                speaker.Character.Humanoid.PlatformStand = true
+                spawn(function()
+                    while nowe == true do
+                        game:GetService("RunService").RenderStepped:Wait()
+                        bg.cframe = game.Workspace.CurrentCamera.CoordinateFrame
+                    end
+                    bg:Destroy()
+                    bv:Destroy()
+                    speaker.Character.Humanoid.PlatformStand = false
+                    speaker.Character.Animate.Disabled = false
+                end)
+            else
+                local UpperTorso = speaker.Character.UpperTorso
+                local bg = Instance.new("BodyGyro", UpperTorso)
+                bg.P = 9e4
+                bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+                bg.cframe = UpperTorso.CFrame
+                local bv = Instance.new("BodyVelocity", UpperTorso)
+                bv.velocity = Vector3.new(0,0.1,0)
+                bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+                speaker.Character.Humanoid.PlatformStand = true
+                spawn(function()
+                    while nowe == true do
+                        wait()
+                        bg.cframe = game.Workspace.CurrentCamera.CoordinateFrame
+                    end
+                    bg:Destroy()
+                    bv:Destroy()
+                    speaker.Character.Humanoid.PlatformStand = false
+                    speaker.Character.Animate.Disabled = false
+                end)
+            end
+        end
+    end
+})
+
+
+-- // SLIDER VELOCIDAD DE VUELO
+SpeedSection:Slider({
+    Title = "Velocidad de Vuelo",
+    Value = { Min = 1, Max = 10, Default = 1 },
+    Callback = function(v)
+        speeds = v
+    end
+})
+
 -- ==========================================================
 -- NUEVA PESTAÑA: EXTRAER
 -- ==========================================================
