@@ -2067,5 +2067,75 @@ DupeSection:Button({
         })
     end
 })
+-- ==========================================================
+-- KORBLOX (EXACTAMENTE IGUAL AL ARCHIVO ORIGINAL)
+-- ==========================================================
+local KorbloxSection = ExtraerTab:Section({Title = "Korblox"})
+
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+
+-- Asset IDs
+local KORBLOX_MESH_ID = "rbxassetid://101851696"
+local KORBLOX_TEXTURE_ID = "rbxassetid://101851254"
+local DARK_GREY_COLOR = Color3.fromRGB(64, 64, 64)
+
+local function applyKorblox()
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+
+    if hum.RigType == Enum.HumanoidRigType.R15 then
+        local rf = char:FindFirstChild("RightFoot")
+        local rl = char:FindFirstChild("RightLowerLeg")
+        local ru = char:FindFirstChild("RightUpperLeg")
+
+        if ru and rl and rf then
+            rf.Transparency = 1
+            rl.Transparency = 1
+            
+            ru.MeshId = "http://www.roblox.com/asset/?id=902942096"
+            ru.TextureID = "http://roblox.com/asset/?id=902843398"
+            ru.Color = Color3.new(1, 1, 1)
+            ru.Transparency = 0
+        end
+    else
+        local rightLeg = char:FindFirstChild("Right Leg")
+        if rightLeg then
+            for _, v in ipairs(char:GetChildren()) do
+                if v:IsA("CharacterMesh") and v.BodyPart == Enum.BodyPart.RightLeg then
+                    v:Destroy()
+                end
+            end
+            
+            local mesh = rightLeg:FindFirstChildOfClass("SpecialMesh")
+            if not mesh then
+                mesh = Instance.new("SpecialMesh")
+                mesh.Parent = rightLeg
+            end
+            
+            rightLeg.Color = DARK_GREY_COLOR
+            rightLeg.Transparency = 0
+            
+            mesh.MeshType = Enum.MeshType.FileMesh
+            mesh.MeshId = KORBLOX_MESH_ID
+            mesh.TextureId = KORBLOX_TEXTURE_ID
+            mesh.Scale = Vector3.new(1, 1, 1)
+        end
+    end
+end
+
+KorbloxSection:Button({
+    Title = "Activar Korblox",
+    Callback = function()
+        if player.Character then
+            applyKorblox()
+        end
+    end
+})
 print("✅ 3 Botones de Kill agregados correctamente (Murder Tools)")
 print("✅ Nexora Framework migrado a WindUI correctamente.")
