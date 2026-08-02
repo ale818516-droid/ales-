@@ -8,8 +8,12 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local Stats = game:GetService("Stats")
 local LocalPlayer = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Camera = Workspace.CurrentCamera
 
 -- ==================== CONFIGURACIÓN DE UI ====================
 local Window = WindUI:CreateWindow({
@@ -36,11 +40,23 @@ local function Notify(title, content, duration)
 end
 
 -- ==========================================================
+-- VARIABLES GLOBALES (necesarias para Silent Aim)
+-- ==========================================================
+local RoleCache = {}
+local closesthitpart = nil
+
+local Config = {
+    SilentAim = false,
+    GunSilentAim = false,
+    WallCheck = false,
+    LeadShot = false
+}
+
+-- ==========================================================
 -- 1. PESTAÑA AUTO FARM
 -- ==========================================================
 local FarmTab = Window:Tab({Title = "Auto Farm", Icon = "rocket"})
 
--- ==================== GUN TOOLS ====================
 local SecGun = FarmTab:Section({Title = "Gun Tools"})
 
 local function GetGunFast()
@@ -79,7 +95,7 @@ SecGun:Toggle({
     end
 })
 
--- ==================== COINS FARM (de Nexus) ====================
+-- Coins Farm
 local CoinsSection = FarmTab:Section({Title = "Coins Farm"})
 
 local coinOrig = {}
@@ -87,7 +103,6 @@ local coinReachConn = nil
 local autoFarmCoinsRunning = false
 local autoFarmCoinsThread = nil
 
--- Coins Reach (4x Size)
 CoinsSection:Toggle({
     Title = "Coins Reach (4x Size)",
     Default = false,
@@ -117,18 +132,15 @@ CoinsSection:Toggle({
                     obj.Size = originalSize
                 end
             end
-            
             if coinReachConn then
                 coinReachConn:Disconnect()
                 coinReachConn = nil
             end
-            
             coinOrig = {}
         end
     end
 })
 
--- Auto Farm Coins
 local function AutoFarmCoinsFunc()
     local function GetMap()
         while true do
@@ -144,12 +156,8 @@ local function AutoFarmCoinsFunc()
     local function getNearest()
         local map = GetMap()
         local closest, dist = nil, math.huge
-        
         local char = LocalPlayer.Character
-        if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then
-            return nil
-        end
-        
+        if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then return nil end
         local HRP = char:FindFirstChild("HumanoidRootPart")
         if not HRP then return nil end
         
@@ -169,16 +177,12 @@ local function AutoFarmCoinsFunc()
     local function tp(hp)
         local char = LocalPlayer.Character
         if not char or not char:FindFirstChild("Humanoid") then return end
-        
         local HRP = char:FindFirstChild("HumanoidRootPart")
         local Humanoid = char:FindFirstChild("Humanoid")
-        if not HRP or not Humanoid then return end
-        
-        if Humanoid.Health <= 0 then
+        if not HRP or not Humanoid or Humanoid.Health <= 0 then
             autoFarmCoinsRunning = false
             return
         end
-        
         Humanoid:ChangeState(11)
         local d = (HRP.Position - hp.Position).Magnitude
         local t = TweenService:Create(HRP, TweenInfo.new(d / 25, Enum.EasingStyle.Linear), {CFrame = hp.CFrame})
@@ -192,18 +196,15 @@ local function AutoFarmCoinsFunc()
             autoFarmCoinsRunning = false
             break
         end
-        
         local target = getNearest()
         if target then
             tp(target)
             local v = target:FindFirstChild("CoinVisual")
             while v and not v:GetAttribute("Collected") and v.Parent do
-                local char = LocalPlayer.Character
-                if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then
+                if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Humanoid") or LocalPlayer.Character.Humanoid.Health <= 0 then
                     autoFarmCoinsRunning = false
                     break
                 end
-                
                 local n = getNearest()
                 if n and n ~= target then break end
                 task.wait(0.1)
@@ -220,9 +221,7 @@ CoinsSection:Toggle({
     Callback = function(v)
         if v then
             autoFarmCoinsRunning = true
-            autoFarmCoinsThread = task.spawn(function()
-                AutoFarmCoinsFunc()
-            end)
+            autoFarmCoinsThread = task.spawn(AutoFarmCoinsFunc)
         else
             autoFarmCoinsRunning = false
             if autoFarmCoinsThread then
@@ -246,7 +245,294 @@ CoinsSection:Button({
 })
 
 -- ==========================================================
--- 2. PESTAÑA VISUALS
+-- 2. PESTAÑA COMBAT (SHERIFF/HERO - EXACTO DE NEXUS)
+-- ==========================================================
+local CombatTab = Window:Tab({Title = "Combat", Icon = "swords"})
+
+local SheriffSection = CombatTab:Section({Title = "SHERIFF/HERO (GUN)"})
+
+-- ========== LÓGICA EXACTA DE NEXUS ==========
+
+local function GetLeadShotPosition(targetRootPart)
+    local currentPos = targetRootPart.Position
+    if Config.LeadShot then 
+        local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue() / 1000
+        currentPos = currentPos + (targetRootPart.Velocity * ping * 1.5) 
+    end
+    return currentPos
+end
+
+local function PerformSilentAimDirectly()
+    if not Config.SilentAim then
+        return false
+    end
+    
+    local gun = nil
+    
+    for _, i in ipairs(LocalPlayer.Character:GetChildren()) do
+        if i:IsA("Tool") and (string.find(string.lower(i.Name), "gun") or i.Name == "Revolver") then
+            gun = i
+            break
+        end
+    end
+    
+    if not gun then
+        for _, i in ipairs(LocalPlayer.Backpack:GetChildren()) do
+            if i:IsA("Tool") and (string.find(string.lower(i.Name), "gun") or i.Name == "Revolver") then
+                gun = i
+                break
+            end
+        end
+    end
+    
+    if not gun then
+        return false
+    end
+    
+    local targetPlr = nil
+    for plrName, role in pairs(RoleCache) do
+        if role == "Murderer" then
+            targetPlr = Players:FindFirstChild(plrName)
+            if targetPlr and targetPlr.Character and targetPlr.Character:FindFirstChild("HumanoidRootPart") then
+                break
+            else
+                targetPlr = nil
+            end
+        end
+    end
+    
+    if not targetPlr or not targetPlr.Character or not targetPlr.Character:FindFirstChild("HumanoidRootPart") then
+        return false
+    end
+    
+    if Config.WallCheck then
+        local origin = Camera.CFrame.Position
+        local targetPosRaw = targetPlr.Character.HumanoidRootPart.Position
+        local direction = (targetPosRaw - origin).Unit * (targetPosRaw - origin).Magnitude
+        
+        local rayParams = RaycastParams.new()
+        rayParams.FilterDescendantsInstances = {LocalPlayer.Character, targetPlr.Character, Workspace:FindFirstChild("GunDrop")}
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        
+        if Workspace:Raycast(origin, direction, rayParams) then
+            return false
+        end
+    end
+    
+    local wasInBackpack = (gun.Parent == LocalPlayer.Backpack)
+    if wasInBackpack then
+        LocalPlayer.Character.Humanoid:EquipTool(gun)
+        task.wait(0.1)
+    end
+    
+    local targetRoot = targetPlr.Character.HumanoidRootPart
+    local targetPos = GetLeadShotPosition(targetRoot)
+    
+    local args = {CFrame.new(Camera.CFrame.Position, targetPos), CFrame.new(targetPos)}
+    
+    if gun:FindFirstChild("Shoot") then
+        gun.Shoot:FireServer(unpack(args))
+        
+        if wasInBackpack and gun.Parent == LocalPlayer.Character then
+            gun.Parent = LocalPlayer.Backpack
+        end
+        return true
+    end
+    
+    return false
+end
+
+local function getGunTarget()
+    if not Config.GunSilentAim then return nil end
+    
+    local myRole = RoleCache[LocalPlayer.Name]
+    if myRole ~= "Sheriff" and myRole ~= "Hero" then
+        return nil
+    end
+    
+    for plrName, role in pairs(RoleCache) do
+        if role == "Murderer" then
+            local plr = Players:FindFirstChild(plrName)
+            if plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local humanoidrootpart = plr.Character.HumanoidRootPart
+                local humanoid = plr.Character:FindFirstChild("Humanoid")
+                
+                if humanoidrootpart and humanoid and humanoid.Health > 0 then
+                    return humanoidrootpart
+                end
+            end
+        end
+    end
+    
+    return nil
+end
+
+local function getdirection(origin, position)
+    return (position - origin).Unit
+end
+
+-- Hook de Raycast (Gun Silent Aim) - EXACTO de Nexus
+local oldnamecall
+oldnamecall = hookmetamethod(game, "__namecall", function(...)
+    local method = getnamecallmethod()
+    local arguments = {...}
+    local self = arguments[1]
+
+    if self == Workspace and not checkcaller() and method == "Raycast" and Config.GunSilentAim then
+        local hitpart = closesthitpart
+        
+        if hitpart then
+            local origin = arguments[2]
+            local direction = getdirection(origin, hitpart.Position) * 1000
+            arguments[3] = direction
+            return oldnamecall(unpack(arguments))
+        end
+    end
+
+    return oldnamecall(...)
+end)
+
+-- Actualizar target continuamente
+RunService.Heartbeat:Connect(function()
+    closesthitpart = getGunTarget()
+end)
+
+-- Botón flotante NEXUS AIM (exacto)
+local ShootGui = Instance.new("ScreenGui")
+ShootGui.Name = "ShootGui_Overlay_V19"
+ShootGui.Parent = CoreGui
+ShootGui.Enabled = false
+ShootGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local ShootButton = Instance.new("TextButton")
+ShootButton.Parent = ShootGui
+ShootButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+ShootButton.BackgroundTransparency = 0.5
+ShootButton.Position = UDim2.new(0.65, 0, 0.6, 0)
+ShootButton.Size = UDim2.new(0, 220, 0, 80)
+ShootButton.Font = Enum.Font.GothamBold
+ShootButton.Text = "NEXUS AIM"
+ShootButton.TextColor3 = Color3.fromRGB(0, 170, 255)
+ShootButton.TextSize = 24
+ShootButton.AutoButtonColor = false
+ShootButton.TextStrokeTransparency = 0.8
+
+local ShootCorner = Instance.new("UICorner")
+ShootCorner.CornerRadius = UDim.new(0, 10)
+ShootCorner.Parent = ShootButton
+
+local ShootStroke = Instance.new("UIStroke")
+ShootStroke.Parent = ShootButton
+ShootStroke.Color = Color3.fromRGB(0, 170, 255)
+ShootStroke.Thickness = 2
+ShootStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local ShootGradient = Instance.new("UIGradient")
+ShootGradient.Parent = ShootStroke
+ShootGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 170, 255)),
+    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 170, 255))
+}
+ShootGradient.Rotation = 45
+
+task.spawn(function()
+    while ShootGui do
+        if ShootGui.Enabled then
+            ShootGradient.Rotation = (ShootGradient.Rotation + 2) % 360
+        end
+        task.wait(0.03)
+    end
+end)
+
+-- Hacer draggable el botón
+do
+    local dragging, dragInput, dragStart, startPos
+    ShootButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = ShootButton.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    ShootButton.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            ShootButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+local function PerformSilentAimMouse()
+    if not Config.SilentAim then return end
+    
+    local success = PerformSilentAimDirectly()
+    
+    if success then
+        ShootButton.Text = "FIRED"
+        ShootStroke.Color = Color3.fromRGB(255, 50, 50)
+        task.delay(0.2, function()
+            ShootButton.Text = "NEXUS AIM"
+            ShootStroke.Color = Color3.fromRGB(0, 170, 255)
+        end)
+    else
+        ShootButton.Text = "NO TARGET"
+        ShootStroke.Color = Color3.fromRGB(255, 50, 50)
+        task.delay(0.5, function()
+            ShootButton.Text = "NEXUS AIM"
+            ShootStroke.Color = Color3.fromRGB(0, 170, 255)
+        end)
+    end
+end
+
+ShootButton.MouseButton1Click:Connect(PerformSilentAimMouse)
+
+-- Toggles exactos
+SheriffSection:Toggle({
+    Title = "Silent Aim (Button)",
+    Default = false,
+    Callback = function(v)
+        Config.SilentAim = v
+        ShootGui.Enabled = v
+    end
+})
+
+SheriffSection:Toggle({
+    Title = "Gun Silent Aim",
+    Default = false,
+    Callback = function(v)
+        Config.GunSilentAim = v
+    end
+})
+
+SheriffSection:Toggle({
+    Title = "Aim WallCheck",
+    Default = false,
+    Callback = function(v)
+        Config.WallCheck = v
+    end
+})
+
+SheriffSection:Toggle({
+    Title = "Lead Shot (Ping Predict)",
+    Default = false,
+    Callback = function(v)
+        Config.LeadShot = v
+    end
+})
+
+-- ==========================================================
+-- 3. PESTAÑA VISUALS
 -- ==========================================================
 local VisualsTab = Window:Tab({Title = "Visuals", Icon = "eye"})
 
@@ -265,38 +551,29 @@ _G.NotifyRoles = false
 _G.NotifyGunDrop = false
 _G.NotifyGunPickup = false
 
-local RoleCache = {}
 local rolesNotified = false
 local wasGunDropped = false
 
--- ==================== NOTIFICACIONES ====================
 local NotifySection = VisualsTab:Section({Title = "Notifications"})
 
 NotifySection:Toggle({
     Title = "Notify Roles (Murd/Sher)",
     Default = false,
-    Callback = function(Value)
-        _G.NotifyRoles = Value
-    end
+    Callback = function(Value) _G.NotifyRoles = Value end
 })
 
 NotifySection:Toggle({
     Title = "Notify Gun Drop",
     Default = false,
-    Callback = function(Value)
-        _G.NotifyGunDrop = Value
-    end
+    Callback = function(Value) _G.NotifyGunDrop = Value end
 })
 
 NotifySection:Toggle({
     Title = "Notify Gun Pickup",
     Default = false,
-    Callback = function(Value)
-        _G.NotifyGunPickup = Value
-    end
+    Callback = function(Value) _G.NotifyGunPickup = Value end
 })
 
--- ==================== ROLE ESP ====================
 local RoleSection = VisualsTab:Section({Title = "Role ESP"})
 
 local function cleanESP(char)
@@ -307,16 +584,13 @@ end
 local function applyRoleHighlight(player, role)
     local char = player.Character
     if not char then return end
-
     local color = RoleColors[role] or RoleColors.Innocent
-
     local holder = char:FindFirstChild("AlexESP_Holder")
     if not holder then
         holder = Instance.new("Folder")
         holder.Name = "AlexESP_Holder"
         holder.Parent = char
     end
-
     local hl = holder:FindFirstChild("Highlight")
     if not hl then
         hl = Instance.new("Highlight")
@@ -325,7 +599,6 @@ local function applyRoleHighlight(player, role)
         hl.Parent = holder
         hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     end
-
     hl.FillColor = color
     hl.OutlineColor = color
     hl.FillTransparency = 0.6
@@ -335,9 +608,7 @@ end
 local function getRoles()
     local remote = ReplicatedStorage:FindFirstChild("GetPlayerData", true)
     if remote then
-        local success, data = pcall(function()
-            return remote:InvokeServer()
-        end)
+        local success, data = pcall(function() return remote:InvokeServer() end)
         if success and data then
             local newRoles = {}
             for plr, plrData in pairs(data) do
@@ -358,7 +629,6 @@ task.spawn(function()
         local roles = getRoles()
         if roles then
             RoleCache = roles
-
             if _G.NotifyRoles and not rolesNotified then
                 local murderer, sheriff = "None", "None"
                 for name, role in pairs(RoleCache) do
@@ -370,14 +640,11 @@ task.spawn(function()
                     rolesNotified = true
                 end
             end
-
             local hasMurder = false
             for _, r in pairs(RoleCache) do
                 if r == "Murderer" then hasMurder = true break end
             end
-            if not hasMurder then
-                rolesNotified = false
-            end
+            if not hasMurder then rolesNotified = false end
         end
         task.wait(0.4)
     end
@@ -389,21 +656,17 @@ task.spawn(function()
             for _, player in pairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character then
                     local role = RoleCache[player.Name] or "Innocent"
-
                     if player.Character:FindFirstChild("Knife") or player.Backpack:FindFirstChild("Knife") then
                         role = "Murderer"
                     elseif player.Character:FindFirstChild("Gun") or player.Backpack:FindFirstChild("Gun") then
                         role = "Sheriff"
                     end
-
                     applyRoleHighlight(player, role)
                 end
             end
         else
             for _, player in pairs(Players:GetPlayers()) do
-                if player.Character then
-                    cleanESP(player.Character)
-                end
+                if player.Character then cleanESP(player.Character) end
             end
         end
     end
@@ -422,15 +685,12 @@ RoleSection:Toggle({
     end
 })
 
--- ==================== GUN ESP ====================
 local GunSection = VisualsTab:Section({Title = "Gun ESP"})
 
 GunSection:Toggle({
     Title = "Highlight Gun Drop",
     Default = false,
-    Callback = function(state)
-        _G.GunESP_Enabled = state
-    end
+    Callback = function(state) _G.GunESP_Enabled = state end
 })
 
 task.spawn(function()
@@ -443,7 +703,6 @@ task.spawn(function()
                 holder = Instance.new("Folder")
                 holder.Name = "AlexGunESP"
                 holder.Parent = gunDrop
-
                 local hl = Instance.new("Highlight")
                 hl.Name = "Highlight"
                 hl.Adornee = gunDrop
@@ -460,10 +719,8 @@ task.spawn(function()
             end
         end
 
-        if gunDrop and not wasGunDropped then
-            if _G.NotifyGunDrop then
-                Notify("Gun Dropped", "¡El arma ha sido soltada en el mapa!", 4)
-            end
+        if gunDrop and not wasGunDropped and _G.NotifyGunDrop then
+            Notify("Gun Dropped", "¡El arma ha sido soltada en el mapa!", 4)
         end
 
         if wasGunDropped and not gunDrop and _G.NotifyGunPickup then
