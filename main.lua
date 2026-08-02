@@ -63,7 +63,6 @@ local Config = {
 -- ==========================================================
 local FarmTab = Window:Tab({Title = "Auto Farm", Icon = "rocket"})
 
--- Gun Tools
 local SecGun = FarmTab:Section({Title = "Gun Tools"})
 
 local function GetGunFast()
@@ -98,17 +97,12 @@ SecGun:Toggle({
     end
 })
 
--- ==================== COINS FARM ====================
+-- Coins Farm (simple, sin matar ni rejoin)
 local CoinsSection = FarmTab:Section({Title = "Coins Farm"})
 
 local autoFarmCoinsRunning = false
 local bag_full = false
 local maxCoins = 40
-
-local function StopFarm()
-    autoFarmCoinsRunning = false
-    bag_full = false
-end
 
 local function AutoFarmCoinsFunc()
     local function GetMap()
@@ -123,24 +117,16 @@ local function AutoFarmCoinsFunc()
     local function getNearest()
         local map = GetMap()
         if not map then return nil end
-        
         local closest, dist = nil, math.huge
         local char = LocalPlayer.Character
-        if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then
-            return nil
-        end
-        
+        if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then return nil end
         local HRP = char:FindFirstChild("HumanoidRootPart")
         if not HRP then return nil end
-        
         for _, coin in ipairs(map.CoinContainer:GetChildren()) do
             local v = coin:FindFirstChild("CoinVisual")
             if v and not v:GetAttribute("Collected") then
                 local d = (HRP.Position - coin.Position).Magnitude
-                if d < dist then
-                    closest = coin
-                    dist = d
-                end
+                if d < dist then closest = coin dist = d end
             end
         end
         return closest
@@ -152,7 +138,6 @@ local function AutoFarmCoinsFunc()
         local HRP = char:FindFirstChild("HumanoidRootPart")
         local Humanoid = char:FindFirstChild("Humanoid")
         if not HRP or not Humanoid or Humanoid.Health <= 0 then return end
-        
         Humanoid:ChangeState(11)
         local d = (HRP.Position - hp.Position).Magnitude
         local t = TweenService:Create(HRP, TweenInfo.new(d / 28, Enum.EasingStyle.Linear), {CFrame = hp.CFrame})
@@ -161,33 +146,11 @@ local function AutoFarmCoinsFunc()
     end
 
     while true do
-        -- Si el toggle se apagó → salir del loop de verdad
-        if not autoFarmCoinsRunning then
-            break
-        end
+        if not autoFarmCoinsRunning then break end
 
-        -- Bolsa llena → eliminar de verdad (muerte limpia)
         if bag_full then
-            local char = LocalPlayer.Character
-            if char then
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum and hum.Health > 0 then
-                    -- Muerte limpia
-                    hum.Health = 0
-                    pcall(function()
-                        char:BreakJoints()
-                    end)
-                    Notify("Bolsa Llena", "Eliminado. Esperando respawn...", 3)
-                end
-            end
-            
-            -- Esperar a que respawnee de verdad
-            local newChar = LocalPlayer.CharacterAdded:Wait()
-            task.wait(1.5)
-            bag_full = false
-        end
-
-        if autoFarmCoinsRunning and not bag_full then
+            task.wait(1)
+        else
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
                 local target = getNearest()
@@ -200,32 +163,30 @@ local function AutoFarmCoinsFunc()
             else
                 task.wait(0.4)
             end
-        else
-            task.wait(0.3)
         end
+        task.wait(0.03)
     end
 end
 
--- Detectar bolsa llena
 task.spawn(function()
     local success, CoinCollected = pcall(function()
         return ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Gameplay"):WaitForChild("CoinCollected")
     end)
-    
     if success and CoinCollected then
         CoinCollected.OnClientEvent:Connect(function(coin_type, current, max)
-            if typeof(max) == "number" then
-                maxCoins = max
-            end
-            
+            if typeof(max) == "number" then maxCoins = max end
             if current >= maxCoins then
-                bag_full = true
+                if not bag_full then
+                    bag_full = true
+                    Notify("Bolsa Llena", "Límite alcanzado. Esperando...", 3)
+                end
+            else
+                bag_full = false
             end
         end)
     end
 end)
 
--- Reset al empezar ronda
 task.spawn(function()
     local success, RoundStart = pcall(function()
         return ReplicatedStorage.Remotes.Gameplay:WaitForChild("RoundStart")
@@ -241,14 +202,12 @@ CoinsSection:Toggle({
     Title = "Auto Farm Coins",
     Default = false,
     Callback = function(v)
+        autoFarmCoinsRunning = v
+        bag_full = false
         if v then
-            autoFarmCoinsRunning = true
-            bag_full = false
             task.spawn(AutoFarmCoinsFunc)
             Notify("Auto Farm", "Activado", 2)
         else
-            -- Apagar de verdad
-            StopFarm()
             Notify("Auto Farm", "Desactivado", 2)
         end
     end
@@ -259,7 +218,7 @@ CoinsSection:Toggle({
 -- ==========================================================
 local CombatTab = Window:Tab({Title = "Combat", Icon = "swords"})
 
--- ==================== SHERIFF/HERO (GUN) ====================
+-- SHERIFF/HERO
 local SheriffSection = CombatTab:Section({Title = "SHERIFF/HERO (GUN)"})
 
 local function GetLeadShotPosition(targetRootPart)
@@ -273,7 +232,6 @@ end
 
 local function PerformSilentAimDirectly()
     if not Config.SilentAim then return false end
-
     local gun = nil
     for _, i in ipairs(LocalPlayer.Character:GetChildren()) do
         if i:IsA("Tool") and (string.find(string.lower(i.Name), "gun") or i.Name == "Revolver") then
@@ -396,7 +354,6 @@ ShootButton.TextColor3 = Color3.fromRGB(0, 170, 255)
 ShootButton.TextSize = 24
 ShootButton.AutoButtonColor = false
 ShootButton.TextStrokeTransparency = 0.8
-
 Instance.new("UICorner", ShootButton).CornerRadius = UDim.new(0, 10)
 
 local ShootStroke = Instance.new("UIStroke")
@@ -497,15 +454,13 @@ SheriffSection:Toggle({
     Callback = function(v) Config.LeadShot = v end
 })
 
--- ==================== KNIFE AURA ====================
+-- KNIFE AURA
 local KnifeAuraSection = CombatTab:Section({Title = "KNIFE AURA"})
 
 local function GetKnifeRemote()
     if not LocalPlayer.Character then return nil end
     local tool = LocalPlayer.Character:FindFirstChild("Knife") or LocalPlayer.Backpack:FindFirstChild("Knife")
-    if tool then
-        return tool:FindFirstChild("HandleTouched", true)
-    end
+    if tool then return tool:FindFirstChild("HandleTouched", true) end
     return nil
 end
 
@@ -514,41 +469,24 @@ task.spawn(function()
         if Config.KnifeAura and RoleCache[LocalPlayer.Name] == "Murderer" then
             local myChar = LocalPlayer.Character
             local knife = myChar and myChar:FindFirstChild("Knife")
-            
             if knife and knife:FindFirstChild("Handle") then
-                local targetFound = false
-                
                 for _, enemy in ipairs(Players:GetPlayers()) do
                     if enemy ~= LocalPlayer and enemy.Character then
                         local eRoot = enemy.Character:FindFirstChild("HumanoidRootPart")
                         local eHum = enemy.Character:FindFirstChild("Humanoid")
                         local eRole = RoleCache[enemy.Name]
-                        
                         if eRoot and eHum and eHum.Health > 0 and eRole ~= "Murderer" and eRole ~= "Lobby" then
                             local dist = (eRoot.Position - myChar.HumanoidRootPart.Position).Magnitude
-                            
                             if dist <= Config.KnifeAuraDist then
                                 eRoot.CFrame = knife.Handle.CFrame
                                 eRoot.Velocity = Vector3.new(0,0,0)
                                 eRoot.RotVelocity = Vector3.new(0,0,0)
-                                
                                 local remote = GetKnifeRemote()
                                 if remote then
-                                    pcall(function()
-                                        remote:FireServer(eRoot)
-                                    end)
-                                end
-                                
-                                if Config.KnifeLegitMode then
-                                    targetFound = true
-                                    break
+                                    pcall(function() remote:FireServer(eRoot) end)
                                 end
                             end
                         end
-                    end
-                    
-                    if Config.KnifeLegitMode and targetFound then
-                        break
                     end
                 end
             end
@@ -569,7 +507,7 @@ KnifeAuraSection:Slider({
     Callback = function(v) Config.KnifeAuraDist = v end
 })
 
--- ==================== HITBOX EXPANDER ====================
+-- HITBOX EXPANDER
 local HitboxSection = CombatTab:Section({Title = "HITBOX EXPANDER"})
 
 RunService.RenderStepped:Connect(function()
@@ -620,133 +558,113 @@ HitboxSection:Toggle({
 })
 
 -- ==========================================================
--- 3. PESTAÑA VISUALS
+-- 3. PESTAÑA VISUALS (ESP EXACTO que pediste)
 -- ==========================================================
-local VisualsTab = Window:Tab({Title = "Visuals", Icon = "eye"})
-
-local RoleColors = {
-    Murderer = Color3.fromRGB(255, 0, 0),
-    Sheriff  = Color3.fromRGB(0, 100, 255),
-    Hero     = Color3.fromRGB(255, 255, 0),
-    Innocent = Color3.fromRGB(0, 255, 100),
-    Lobby    = Color3.fromRGB(150, 150, 150),
-    Gun      = Color3.fromRGB(255, 215, 0)
-}
-
 _G.ESP_Enabled = false
-_G.GunESP_Enabled = false
-_G.NotifyRoles = false
-_G.NotifyGunDrop = false
-_G.NotifyGunPickup = false
+_G.LatestPlayerData = {}
+_G.IsRefiningMode = false
+_G.HighlightGun = false
 
-local rolesNotified = false
-local wasGunDropped = false
-
-local NotifySection = VisualsTab:Section({Title = "Notifications"})
-NotifySection:Toggle({ Title = "Notify Roles (Murd/Sher)", Default = false, Callback = function(v) _G.NotifyRoles = v end })
-NotifySection:Toggle({ Title = "Notify Gun Drop", Default = false, Callback = function(v) _G.NotifyGunDrop = v end })
-NotifySection:Toggle({ Title = "Notify Gun Pickup", Default = false, Callback = function(v) _G.NotifyGunPickup = v end })
-
-local RoleSection = VisualsTab:Section({Title = "Role ESP"})
+local VisualsTab = Window:Tab({Title = "Visuals", Icon = "eye"})
+local RoleSection = VisualsTab:Section({Title = "Role ESP System"})
 
 local function cleanESP(char)
-    local holder = char:FindFirstChild("AlexESP_Holder")
-    if holder then holder:Destroy() end
+    if char:FindFirstChild("RoleHighlight") then char.RoleHighlight:Destroy() end
+    if char:FindFirstChild("Head") and char.Head:FindFirstChild("RoleTag") then char.Head.RoleTag:Destroy() end
 end
 
-local function applyRoleHighlight(player, role)
+local function applyESP(player, role)
     local char = player.Character
     if not char then return end
-    local color = RoleColors[role] or RoleColors.Innocent
-    local holder = char:FindFirstChild("AlexESP_Holder")
-    if not holder then
-        holder = Instance.new("Folder")
-        holder.Name = "AlexESP_Holder"
-        holder.Parent = char
+    
+    local color = (role == "Sheriff" and Color3.fromRGB(0, 170, 255)) or 
+                  (role == "Murderer" and Color3.fromRGB(255, 85, 85)) or 
+                  Color3.fromRGB(85, 255, 127)
+    
+    local existing = char:FindFirstChild("RoleHighlight")
+    if not existing then
+        local h = Instance.new("Highlight")
+        h.Name = "RoleHighlight"
+        h.Adornee = char
+        h.Parent = char
+        h.FillTransparency = 1
+        h.OutlineTransparency = 0
+        h.OutlineColor = color
+        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    elseif existing.OutlineColor ~= color then
+        existing.OutlineColor = color
     end
-    local hl = holder:FindFirstChild("Highlight")
-    if not hl then
-        hl = Instance.new("Highlight")
-        hl.Name = "Highlight"
-        hl.Adornee = char
-        hl.Parent = holder
-        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    end
-    hl.FillColor = color
-    hl.OutlineColor = color
-    hl.FillTransparency = 0.6
-    hl.OutlineTransparency = 0
-end
 
-local function getRoles()
-    local remote = ReplicatedStorage:FindFirstChild("GetPlayerData", true)
-    if remote then
-        local success, data = pcall(function() return remote:InvokeServer() end)
-        if success and data then
-            local newRoles = {}
-            for plr, plrData in pairs(data) do
-                if plrData.Dead or not plrData.Role or plrData.Role == "" then
-                    newRoles[plr] = "Lobby"
-                else
-                    newRoles[plr] = plrData.Role
-                end
+    local head = char:FindFirstChild("Head")
+    if head then
+        if role == "Murderer" then
+            if not head:FindFirstChild("RoleTag") then
+                local bill = Instance.new("BillboardGui")
+                bill.Name = "RoleTag"
+                bill.Adornee = head
+                bill.Size = UDim2.new(0, 150, 0, 40) 
+                bill.StudsOffset = Vector3.new(0, 2.5, 0)
+                bill.AlwaysOnTop = true
+                bill.SizeOffset = Vector2.new(0, 0) 
+                bill.Parent = head
+                
+                local label = Instance.new("TextLabel")
+                label.Parent = bill
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.Text = "[ASESINO]"
+                label.TextColor3 = color
+                label.TextStrokeTransparency = 0
+                label.Font = Enum.Font.SourceSansBold
+                label.TextSize = 18
+                label.TextXAlignment = Enum.TextXAlignment.Center
+                label.TextYAlignment = Enum.TextYAlignment.Center
             end
-            return newRoles
+        else
+            if head:FindFirstChild("RoleTag") then head.RoleTag:Destroy() end
         end
     end
-    return nil
 end
 
-task.spawn(function()
-    while true do
-        local roles = getRoles()
-        if roles then
-            RoleCache = roles
-            if _G.NotifyRoles and not rolesNotified then
-                local murderer, sheriff = "None", "None"
-                for name, role in pairs(RoleCache) do
-                    if role == "Murderer" then murderer = name end
-                    if role == "Sheriff" then sheriff = name end
-                end
-                if murderer ~= "None" then
-                    Notify("Roles Revelados", "Murderer: " .. murderer .. "\nSheriff: " .. sheriff, 5)
-                    rolesNotified = true
-                end
-            end
-            local hasMurder = false
-            for _, r in pairs(RoleCache) do
-                if r == "Murderer" then hasMurder = true break end
-            end
-            if not hasMurder then rolesNotified = false end
-        end
-        task.wait(0.4)
-    end
+pcall(function()
+    game:GetService("ReplicatedStorage").Remotes.Gameplay.PlayerDataChanged.OnClientEvent:Connect(function(data)
+        _G.LatestPlayerData = data
+    end)
 end)
 
 task.spawn(function()
-    while task.wait(0.4) do
+    task.wait(10)
+    _G.IsRefiningMode = true
+end)
+
+task.spawn(function()
+    while task.wait(0.5) do
         if _G.ESP_Enabled then
             for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    local role = RoleCache[player.Name] or "Innocent"
-                    if player.Character:FindFirstChild("Knife") or player.Backpack:FindFirstChild("Knife") then
-                        role = "Murderer"
-                    elseif player.Character:FindFirstChild("Gun") or player.Backpack:FindFirstChild("Gun") then
-                        role = "Sheriff"
+                if player.Character then
+                    local data = _G.LatestPlayerData and _G.LatestPlayerData[player.Name]
+                    local role = data and data.Role or "Innocent"
+                    
+                    if _G.IsRefiningMode then
+                        if player.Character:FindFirstChild("Gun") or player.Backpack:FindFirstChild("Gun") then
+                            role = "Sheriff"
+                        elseif player.Character:FindFirstChild("Knife") or player.Backpack:FindFirstChild("Knife") then
+                            role = "Murderer"
+                        end
                     end
-                    applyRoleHighlight(player, role)
+                    
+                    applyESP(player, role)
+                    
+                    -- Actualizar RoleCache para el Silent Aim / Knife Aura
+                    RoleCache[player.Name] = role
                 end
-            end
-        else
-            for _, player in pairs(Players:GetPlayers()) do
-                if player.Character then cleanESP(player.Character) end
             end
         end
     end
 end)
 
 RoleSection:Toggle({
-    Title = "Role ESP (Highlight)",
+    Title = "Role ESP",
     Default = false,
     Callback = function(Value)
         _G.ESP_Enabled = Value
@@ -758,53 +676,44 @@ RoleSection:Toggle({
     end
 })
 
-local GunSection = VisualsTab:Section({Title = "Gun ESP"})
-GunSection:Toggle({
-    Title = "Highlight Gun Drop",
+local GunEspSection = VisualsTab:Section({Title = "Gun ESP"})
+
+GunEspSection:Toggle({
+    Title = "Highlight Gun Drop (Dorado)",
     Default = false,
-    Callback = function(state) _G.GunESP_Enabled = state end
+    Callback = function(state)
+        _G.HighlightGun = state
+    end
 })
 
 task.spawn(function()
     while true do
-        local gunDrop = Workspace:FindFirstChild("GunDrop", true)
-        if _G.GunESP_Enabled and gunDrop then
-            local holder = gunDrop:FindFirstChild("AlexGunESP")
-            if not holder then
-                holder = Instance.new("Folder")
-                holder.Name = "AlexGunESP"
-                holder.Parent = gunDrop
-                local hl = Instance.new("Highlight")
-                hl.Name = "Highlight"
-                hl.Adornee = gunDrop
-                hl.FillColor = RoleColors.Gun
-                hl.OutlineColor = Color3.fromRGB(255, 165, 0)
-                hl.FillTransparency = 0.5
-                hl.OutlineTransparency = 0
-                hl.Parent = holder
+        if _G.HighlightGun then
+            for _, obj in pairs(Workspace:GetDescendants()) do
+                if obj.Name == "GunDrop" then
+                    local hl = obj:FindFirstChild("GunHighlightNet")
+                    if not hl then
+                        hl = Instance.new("Highlight")
+                        hl.Name = "GunHighlightNet"
+                        hl.FillColor = Color3.fromRGB(255, 215, 0)
+                        hl.OutlineColor = Color3.fromRGB(255, 165, 0)
+                        hl.OutlineTransparency = 0
+                        hl.FillTransparency = 0.5
+                        hl.Parent = obj
+                    end
+                end
             end
         else
-            if gunDrop then
-                local holder = gunDrop:FindFirstChild("AlexGunESP")
-                if holder then holder:Destroy() end
-            end
-        end
-        if gunDrop and not wasGunDropped and _G.NotifyGunDrop then
-            Notify("Gun Dropped", "¡El arma ha sido soltada en el mapa!", 4)
-        end
-        if wasGunDropped and not gunDrop and _G.NotifyGunPickup then
-            task.wait(0.4)
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p.Character and (p.Character:FindFirstChild("Gun") or p.Backpack:FindFirstChild("Gun")) then
-                    Notify("Gun Picked", p.Name .. " recogió el arma!", 4)
-                    break
+            for _, obj in pairs(Workspace:GetDescendants()) do
+                if obj.Name == "GunDrop" then
+                    local hl = obj:FindFirstChild("GunHighlightNet")
+                    if hl then hl:Destroy() end
                 end
             end
         end
-        wasGunDropped = (gunDrop ~= nil)
-        task.wait(0.5)
+        task.wait(0.7)
     end
 end)
 
 print("✅ AlexHub cargado correctamente")
-Notify("AlexHub", "Script cargado con éxito!", 4)
+Notify("AlexHub", "Script cargado con éxito!", 5)
