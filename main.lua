@@ -17,10 +17,16 @@ local Camera = Workspace.CurrentCamera
 
 -- ==================== CONFIGURACIÓN DE UI ====================
 local Window = WindUI:CreateWindow({
-    Title = "ALexHub",
-    Icon = "rbxassetid://4483345906",
-    Author = "Alexx Hub",
-    Folder = "MM2_New_Project"
+    Title = "Alexx hub",
+    Theme = "Dark",
+    Author = "Yisuhub",
+    Folder = "Alexx",
+    Acrylic = false,
+    Transparent = false,
+    NewElements = true,
+    HideSearchBar = false,
+    OpenButton = { Enabled = true, Draggable = true, Title = "YisusHub", CornerRadius = UDim.new(1), Scale = 0.8 },
+    Topbar = { Height = 44, ButtonsType = "Default" }
 })
 
 WindUI:AddTheme({
